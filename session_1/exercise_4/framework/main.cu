@@ -7,6 +7,9 @@
 // ### Summer Semester 2017, September 11 - October 9
 // ###
 
+// Written by: Jiho Yang (M.Sc student in Computational Science & Engineering)
+// Matriculation number: 03675799
+
 #include "helper.h"
 #include <iostream>
 using namespace std;
@@ -17,22 +20,95 @@ using namespace std;
 // Gamma correction
 __global__ void gamma_correction(float *d_imgOut, float *d_imgIn, int sizeImg, float gamma){
 	for (int i = 0; i < sizeImg; i++){
-		d_imgOut[i] = pow(d_imgIn[i], gamma);
+		d_imgOut[i] = (d_imgIn[i])^gamma;
 	}
 }
 
 // Compute gradient
-__global__ void compute_gradient(float *d_grad, float *d_imgIn, int sizeGrad, int w, int h, int nc){
-	for (int c = 0; c < nc; i++){
-		for (int y = 0; y < h; y++){
-			for (int x = 0; x < w; x++){
-				d_grad[i] = d_imgIn[x + w*y + w*h*i + 1] - d_imgIn[x + w*y + w*h*i]
+__global__ void compute_gradient(float *d_gradx, float *d_grady, float *d_imgIn, int w, int h, int nc){
+	size_t countx = 0;
+	size_t county = 0;
+	for (int c = 0; c < nc; c++){
+		for (int y = 0; y < h - 1; y++){
+			for (int x = 0; x < w - 1; x++){
+				size_t x_high = x + 1 + (size_t)w*y + (size_t)w*h*c;
+				size_t y_high = x + (size_t)w*(y+1) + (size_t)w*h*c;
+				size_t low = x + (size_t)w*y + (size_t)w*h*c;
+				// Gradient in x
+				d_gradx[countx] = d_imgIn[x_high] - d_imgIn[low];
+				countx += 1;
+				// Gradient in y
+				d_grady[county] = d_imgIn[y_high] - d_imgIn[low];
+				county += 1;
+			}
+			x = (size_t)w - 1;
+			// Update y_high and low
+			size_t y_high = x + (size_t)w*(y+1) + (size_t)w*h*c;
+			size_t low = x + (size_t)w*y + (size_t)w*h*c;
+			// x boundary
+			d_gradx[countx] = 0;
+			countx += 1;
+			// Gradient in y
+			d_grady[county] = d_imgIn[y_high] - d_imgIn[low];
+			county += 1;
+		}
+		y = (size_t)h - 1;
+		for (int x = 0; x < w - 1; x++){
+			// Update x_high and low
+			size_t x_high = x + 1 + (size_t)w*y + (size_t)w*h*c;
+			size_t low = x + (size_t)w*y + (size_t)w*h*c;
+			// Gradient in x
+			d_gradx[countx] = d_imgIn[x_high] - d_imgIn[low];
+			countx += 1;
+			// y boundary
+			d_grady[county] = 0;
+			county += 1;
+		}
+		x = (size_t)w - 1;
+		// x boundary
+		d_gradx[countx] = 0;
+		countx += 1;
+		// y boundary
+		d_grady[county] = 0;
+		county += 1;
+	}
+}
+
+__global__ void compute_divergence(float *d_div, float *d_imgIn, int w, int h, int nc){
+	size_t count = 0;
+	for (int c = 0; c < nc; c++){
+		y = 0;
+		x = 0;
+		// x and y boundary
+		d_div[count] = 0;
+		count += 1;
+		for (int x = 1; x < w; x++){
+			// Update x_low
+			size_t x_low = x - 1 + (size_t)w*y + (size_t)w*h*c;
+			// Divergence
+			d_div[count] = d_imgIn[high] - d_imgIn[x_low];
+			count += 1;
+		}
+		for (int y = 1; y < h; y++){
+			x = 0;
+			// Update y_low
+			size_t y_low = x + (size_t)w*(y-1) + (size_t)w*h*c;
+			size_t high  = x + (size_t)w*y + (size_t)w*h*c;
+			// Divergence
+			d_div[count] = d_imgIn[high] - d_imgIn[y_low];
+			count += 1;
+			for (int x = 1; x < w; x++){
+				// Update x_low and y_low
+				size_t x_low = x - 1 + (size_t)w*y + (size_t)w*h*c;
+				size_t y_low = x + (size_t)w*(y-1) + (size_t)w*h*c;
+				size_t high = x + (size_t)w*y + (size_t)w*h*c;
+				// Divergence
+				d_div[count] = 2*d_imgIn[high] - d_imgIn[x_low] - d_imgIn[y_low];
+				count += 1;
 			}
 		}
 	}
 }
-
-//__global__ void compute_divergence
 
 //__global__ void compute_norm
 
@@ -172,10 +248,6 @@ int main(int argc, char **argv)
     cout << "time: " << t*1000 << " ms" << endl;
 
 	int sizeImg = (int)w*h*nc;
-	int sizeGradx = (int)(w-1)*h*nc;
-	int sizeGrady = (int)w*(h-1)*nc;
-
-
 	size_t nbytes = (size_t)(sizeImg)*sizeof(float);
 	float gamma = 5.0f;
 
@@ -202,34 +274,44 @@ int main(int argc, char **argv)
 	gamma_correction <<<grid, block>>> (d_imgOut, d_imgIn, sizeImg, gamma);
 	// Copy back to CPU
 	cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); CUDA_CHECK;
-	cudaFree(d_imgOut); CUDA_CHECK;
 
-	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////// Gradient //////////////////////////////////////////////
 
-	// Gradient computation
-	float *gradx = NULL;
-	float *grady = NULL;
 	float *d_gradx = NULL;
 	float *d_grady = NULL;
-	nbytes_gradx = (size_t)(sizeGradx)*sizeof(float);
-	nbytes_grady = (size_t)(sizeGrady)*sizeof(float);
-	cudaMalloc(&d_gradx, nbytes_gradx); CUDA_CHECK;
-	cudaMalloc(&d_grady, nbytes_grady); CUDA_CHECK;
+	cudaMalloc(&d_gradx, nbytes); CUDA_CHECK;
+	cudaMalloc(&d_grady, nbytes); CUDA_CHECK;
 	// Launch kernel
 	dim3 block = dim3(128, 1, 1);
-	dim3 grid = dim3((sizeGradx+block.x-1)/block.x, 1, 1);
-	// Compute gradient in x
-	compute_gradient <<<grid, block>>> (d_gradx, d_imgIn, sizeGradx, w, h, nc);
+	dim3 grid = dim3((sizeImg+block.x-1)/block.x, 1, 1);
+	// Compute gradient
+	compute_gradient <<<grid, block>>> (d_gradx, d_grady, d_imgIn, w, h, nc);
 	// Copy back to CPU
-	cudaMemcpy(gradx, d_gradx, 
+	cudaMemcpy(imgOut, d_gradx, nbytes, cudaMemcpyDeviceToHost); CUDA_CHECK;
+	//cudaMemcpy(imgOut, d_grady, nbytes, cudaMemcpyDeviceToHost); CUDA_CHECK;
 
+	//////////////////////////////////////////// Divergence /////////////////////////////////////////////
+	float *d_div = NULL;
+	cudaMalloc(&d_div, nbytes); CUDA_CHECK;
+	cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice); CUDA_CHECK;
+	// Launch kernel
+	dim3 block = dim3(128, 1, 1);
+	dim3 grid = dim3((sizeImg+block.x-1)/block.x, 1, 1);
+	// Compute divergence
+	compute_divergence <<<grid, block>>> (d_div, d_imgIn, w, h, nc);
+	// Copy back to CPU
+	cudaMemcpy(imgOut, d_div, nbytes, cudaMemcpyDeviceToHost); CUDA_CHECK;
 
-cudaFree(d_imgIn); CUDA_CHECK;
+	/////////////////////////////////////////////////////
 
+	// Free memory
+	cudaFree(d_imgIn); CUDA_CHECK;
+	cudaFree(d_imgOut); CUDA_CHECK;
+	cudaFree(d_gradx); CUDA_CHECK;
+	cudaFree(d_grady); CUDA_CHECK;
+	cudaFree(d_div);	CUDA_CHECK;
 
-
-
-compute_gradient(float *d_grad, float *d_imgIn, int sizeGrad, int w, int h, int nc){
+	/////////////////////////////////////////////////////
 
     // show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
