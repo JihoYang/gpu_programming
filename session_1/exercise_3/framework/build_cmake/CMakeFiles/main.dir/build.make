@@ -43,10 +43,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /usr/prakt/s151/cuda_ss17/framework
+CMAKE_SOURCE_DIR = /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /usr/prakt/s151/cuda_ss17/framework/build_cmake
+CMAKE_BINARY_DIR = /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake
 
 # Include any dependencies generated for this target.
 include CMakeFiles/main.dir/depend.make
@@ -284,9 +284,9 @@ CMakeFiles/main.dir/main_generated_main.cu.o: ../helper.h
 CMakeFiles/main.dir/main_generated_main.cu.o: ../main.cu
 CMakeFiles/main.dir/main_generated_main.cu.o: CMakeFiles/main.dir/main_generated_main.cu.o.cmake
 CMakeFiles/main.dir/main_generated_main.cu.o: ../main.cu
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building NVCC (Device) object CMakeFiles/main.dir/main_generated_main.cu.o"
-	cd /usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -E make_directory /usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir//.
-	cd /usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -D verbose:BOOL=$(VERBOSE) -D build_configuration:STRING= -D generated_file:STRING=/usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir//./main_generated_main.cu.o -D generated_cubin_file:STRING=/usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir//./main_generated_main.cu.o.cubin.txt -P /usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir//main_generated_main.cu.o.cmake
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building NVCC (Device) object CMakeFiles/main.dir/main_generated_main.cu.o"
+	cd /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -E make_directory /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir//.
+	cd /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -D verbose:BOOL=$(VERBOSE) -D build_configuration:STRING= -D generated_file:STRING=/usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir//./main_generated_main.cu.o -D generated_cubin_file:STRING=/usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir//./main_generated_main.cu.o.cubin.txt -P /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir//main_generated_main.cu.o.cmake
 
 CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/include/_G_config.h
 CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/include/alloca.h
@@ -515,17 +515,17 @@ CMakeFiles/main.dir/main_generated_helper.cu.o: ../helper.cu
 CMakeFiles/main.dir/main_generated_helper.cu.o: ../helper.h
 CMakeFiles/main.dir/main_generated_helper.cu.o: CMakeFiles/main.dir/main_generated_helper.cu.o.cmake
 CMakeFiles/main.dir/main_generated_helper.cu.o: ../helper.cu
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building NVCC (Device) object CMakeFiles/main.dir/main_generated_helper.cu.o"
-	cd /usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -E make_directory /usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir//.
-	cd /usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -D verbose:BOOL=$(VERBOSE) -D build_configuration:STRING= -D generated_file:STRING=/usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir//./main_generated_helper.cu.o -D generated_cubin_file:STRING=/usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir//./main_generated_helper.cu.o.cubin.txt -P /usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir//main_generated_helper.cu.o.cmake
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building NVCC (Device) object CMakeFiles/main.dir/main_generated_helper.cu.o"
+	cd /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -E make_directory /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir//.
+	cd /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -D verbose:BOOL=$(VERBOSE) -D build_configuration:STRING= -D generated_file:STRING=/usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir//./main_generated_helper.cu.o -D generated_cubin_file:STRING=/usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir//./main_generated_helper.cu.o.cubin.txt -P /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir//main_generated_helper.cu.o.cmake
 
 # Object files for target main
 main_OBJECTS =
 
 # External object files for target main
 main_EXTERNAL_OBJECTS = \
-"/usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir/main_generated_main.cu.o" \
-"/usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir/main_generated_helper.cu.o"
+"/usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir/main_generated_main.cu.o" \
+"/usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir/main_generated_helper.cu.o"
 
 main: CMakeFiles/main.dir/main_generated_main.cu.o
 main: CMakeFiles/main.dir/main_generated_helper.cu.o
@@ -551,7 +551,7 @@ main: /usr/lib/x86_64-linux-gnu/libopencv_imgproc.so.2.4.9
 main: /usr/lib/x86_64-linux-gnu/libopencv_flann.so.2.4.9
 main: /usr/lib/x86_64-linux-gnu/libopencv_core.so.2.4.9
 main: CMakeFiles/main.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable main"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable main"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/main.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -569,6 +569,6 @@ CMakeFiles/main.dir/clean:
 
 CMakeFiles/main.dir/depend: CMakeFiles/main.dir/main_generated_main.cu.o
 CMakeFiles/main.dir/depend: CMakeFiles/main.dir/main_generated_helper.cu.o
-	cd /usr/prakt/s151/cuda_ss17/framework/build_cmake && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /usr/prakt/s151/cuda_ss17/framework /usr/prakt/s151/cuda_ss17/framework /usr/prakt/s151/cuda_ss17/framework/build_cmake /usr/prakt/s151/cuda_ss17/framework/build_cmake /usr/prakt/s151/cuda_ss17/framework/build_cmake/CMakeFiles/main.dir/DependInfo.cmake --color=$(COLOR)
+	cd /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake /usr/prakt/s151/gpu_programming/session_1/exercise_3/framework/build_cmake/CMakeFiles/main.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/main.dir/depend
 

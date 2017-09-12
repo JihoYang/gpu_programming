@@ -7,6 +7,9 @@
 // ### Summer Semester 2017, September 11 - October 9
 // ###
 
+// Written by: Jiho Yang, M.Sc. Computational Science & Engineering
+// Matriculation number: 03675799
+
 #include "helper.h"
 #include <iostream>
 using namespace std;
@@ -15,12 +18,11 @@ using namespace std;
 //#define CAMERA
 
 __global__ void gamma_correction(float *d_imgOut, float *d_imgIn, int sizeImg, float gamma){
-	for (int i = 0; i < sizeImg; i++){
+ 	int i = threadIdx.x + blockIdx.x*blockDim.x;
+	if (i < sizeImg){
 		d_imgOut[i] = pow(d_imgIn[i], gamma);
 	}
 }
-
-
 
 int main(int argc, char **argv)
 {
@@ -28,9 +30,6 @@ int main(int argc, char **argv)
     // This happens on the very first call to a CUDA function, and takes some time (around half a second)
     // We will do it right here, so that the run time measurements are accurate
     cudaDeviceSynchronize();  CUDA_CHECK;
-
-
-
 
     // Reading command line parameters:
     // getParam("param", var, argc, argv) looks whether "-param xyz" is specified, and if so stores the value "xyz" in "var"
@@ -161,7 +160,7 @@ int main(int argc, char **argv)
 
 	int sizeImg = (int)w*h*nc;
 	size_t nbytes = (size_t)(sizeImg)*sizeof(float);
-	float gamma = 5.0f;
+	float gamma = 3.1f;
 
 	///////////////////////////////// Gamma correction - CPU Computation /////////////////////////////////
 
