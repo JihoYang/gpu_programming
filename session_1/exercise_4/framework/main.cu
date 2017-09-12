@@ -222,9 +222,6 @@ int main(int argc, char **argv)
     // ### TODO: Main computation
     // ###
     // ###
-    timer.end();  float t = timer.get();  // elapsed time in seconds
-    cout << "time: " << t*1000 << " ms" << endl;
-
 
 	// Setup
 	int sizeImg = (int)w*h*nc;
@@ -279,7 +276,10 @@ int main(int argc, char **argv)
 
 	/////////////////////////////////////////////////////
 
-    // show input image
+    timer.end();  float t = timer.get();  // elapsed time in seconds
+    cout << "time: " << t*1000 << " ms" << endl;
+
+	// show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
 
     // show output image: first convert to interleaved opencv format from the layered raw array

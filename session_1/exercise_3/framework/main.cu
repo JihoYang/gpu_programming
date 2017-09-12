@@ -147,20 +147,14 @@ int main(int argc, char **argv)
     convert_mat_to_layered (imgIn, mIn);
 
 
-
-
-
-
     Timer timer; timer.start();
     // ###
     // ###
     // ### TODO: Main computation
     // ###
     // ###
-    timer.end();  float t = timer.get();  // elapsed time in seconds
-    cout << "time: " << t*1000 << " ms" << endl;
 
-	int sizeImg = (int)w*h*nc;
+   	int sizeImg = (int)w*h*nc;
 	size_t nbytes = (size_t)(sizeImg)*sizeof(float);
 	float gamma = 3.1f;
 
@@ -190,6 +184,10 @@ int main(int argc, char **argv)
 	cudaFree(d_imgOut); CUDA_CHECK;
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+	timer.end();  float t = timer.get();  // elapsed time in seconds
+    cout << "time: " << t*1000 << " ms" << endl;
 
     // show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
