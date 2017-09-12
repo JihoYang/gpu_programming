@@ -7,9 +7,9 @@
 // ### Summer Semester 2017, September 11 - October 9
 // ###
 
-// Exercise 3
+// Exercise 8
 
-// Written by: Jiho Yang, M.Sc. Computational Science & Engineering
+// Written by: Jiho Yang (M.Sc student in Computational Science & Engineering)
 // Matriculation number: 03675799
 
 #include "helper.h"
@@ -19,12 +19,38 @@ using namespace std;
 // uncomment to use the camera
 //#define CAMERA
 
-__global__ void gamma_correction(float *d_imgOut, float *d_imgIn, int sizeImg, float gamma){
- 	int i = threadIdx.x + blockIdx.x*blockDim.x;
-	if (i < sizeImg){
-		d_imgOut[i] = pow(d_imgIn[i], gamma);
+// Compute eigenvalue of a 2x2 matrix
+__device__ void compute_eigenvalue(float **A, float *eigval_1, float *eigval_2, float *eigvec_1, float *eigvec_2){
+	// Get a b c d;
+	float a = A[0][0];
+	float b = A[0][1];
+	float c = A[1][0];
+	float d = A[1][1];
+	// Trace and determinant
+	float T = a + d;
+	float D = a*d - b*c;
+	// Compute eigenvalue
+	*eigval_1 = T/2 + sqrtf(T*T/4 - D);
+	*eigval_2 = T/2 - sqrtf(T*T/4 - D);
+	// Compute eigenvector
+	if (c != 0){
+		eigvec_1[0] = *eigval_1 - d;
+		eigvec_2[0] = *eigval_2 - d;
+		eigvec_1[1] = c;
+		eigvec_2[1] = c;
+	} else if (b != 0){
+		eigvec_1[0] = b;
+		eigvec_2[0] = b;
+		eigvec_1[1] = *eigval_1 - a;
+		eigvec_2[1] = *eigval_2 - a;
+	} else if (b == 0 && c == 0){
+		eigvec_1[0] = 1;
+		eigvec_2[0] = 0;
+		eigvec_1[1] = 0;
+		eigvec_2[1] = 1;
 	}
 }
+
 
 int main(int argc, char **argv)
 {
@@ -32,6 +58,9 @@ int main(int argc, char **argv)
     // This happens on the very first call to a CUDA function, and takes some time (around half a second)
     // We will do it right here, so that the run time measurements are accurate
     cudaDeviceSynchronize();  CUDA_CHECK;
+
+
+
 
     // Reading command line parameters:
     // getParam("param", var, argc, argv) looks whether "-param xyz" is specified, and if so stores the value "xyz" in "var"
@@ -102,9 +131,9 @@ int main(int argc, char **argv)
     // ### TODO: Change the output image format as needed
     // ###
     // ###
-    cv::Mat mOut(h,w,mIn.type());  // mOut will have the same number of channels as the input image, nc layers
+    //cv::Mat mOut(h,w,mIn.type());  // mOut will have the same number of channels as the input image, nc layers
     //cv::Mat mOut(h,w,CV_32FC3);    // mOut will be a color image, 3 layers
-    //cv::Mat mOut(h,w,CV_32FC1);    // mOut will be a grayscale image, 1 layer
+    cv::Mat mOut(h,w,CV_32FC1);    // mOut will be a grayscale image, 1 layer
     // ### Define your own output images here as needed
 
 
@@ -147,10 +176,6 @@ int main(int argc, char **argv)
     convert_mat_to_layered (imgIn, mIn);
 
 
-
-
-
-
     Timer timer; timer.start();
     // ###
     // ###
@@ -160,36 +185,11 @@ int main(int argc, char **argv)
     timer.end();  float t = timer.get();  // elapsed time in seconds
     cout << "time: " << t*1000 << " ms" << endl;
 
-	int sizeImg = (int)w*h*nc;
-	size_t nbytes = (size_t)(sizeImg)*sizeof(float);
-	float gamma = 3.1f;
+	//2D matrix
+	float A[2][2] = {{1, 0},
+					 {0, 1}};
 
-	///////////////////////////////// Gamma correction - CPU Computation /////////////////////////////////
-
-	/*for (int i = 0; i < sizeImg; i++){
-		imgOut[i] = pow(imgIn[i], gamma);
-	}*/
-
-	//////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-	///////////////////////////////// Gamma correction - GPU Computation /////////////////////////////////
-
-	float *d_imgOut = NULL;	
-	float *d_imgIn  = NULL; 
-	cudaMalloc(&d_imgIn, nbytes);	CUDA_CHECK;
-	cudaMalloc(&d_imgOut, nbytes);	CUDA_CHECK;
-	cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);	CUDA_CHECK;
-	// Launch kernel
-    dim3 block = dim3(128, 1, 1);
-    dim3 grid = dim3((sizeImg+block.x-1)/block.x, 1, 1);
-	// Execute gamma correction
-	gamma_correction <<<grid, block>>> (d_imgOut, d_imgIn, sizeImg, gamma);
-	// Copy back to CPU
-	cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); CUDA_CHECK;
-	cudaFree(d_imgOut); CUDA_CHECK;
-
-	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////
 
     // show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
@@ -208,9 +208,6 @@ int main(int argc, char **argv)
     cv::waitKey(0);
 #endif
 
-
-
-
     // save input and result
     cv::imwrite("image_input.png",mIn*255.f);  // "imwrite" assumes channel range [0,255]
     cv::imwrite("image_result.png",mOut*255.f);
@@ -223,6 +220,3 @@ int main(int argc, char **argv)
     cvDestroyAllWindows();
     return 0;
 }
-
-
-

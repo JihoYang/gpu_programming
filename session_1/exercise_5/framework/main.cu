@@ -7,9 +7,9 @@
 // ### Summer Semester 2017, September 11 - October 9
 // ###
 
-// Exercise 3
+// Exercise 5
 
-// Written by: Jiho Yang, M.Sc. Computational Science & Engineering
+// Written by: Jiho Yang (M.Sc student in Computational Science & Engineering)
 // Matriculation number: 03675799
 
 #include "helper.h"
@@ -19,12 +19,78 @@ using namespace std;
 // uncomment to use the camera
 //#define CAMERA
 
-__global__ void gamma_correction(float *d_imgOut, float *d_imgIn, int sizeImg, float gamma){
- 	int i = threadIdx.x + blockIdx.x*blockDim.x;
-	if (i < sizeImg){
-		d_imgOut[i] = pow(d_imgIn[i], gamma);
+// Compute gradient
+__global__ void compute_gradient(float *d_gradx, float *d_grady, float *d_imgIn, int w, int h, int sizeImg){
+	// Get x y z pixel coordinates in 3D kernel
+	int x = threadIdx.x + blockIdx.x*blockDim.x;
+	int y = threadIdx.y + blockIdx.y*blockDim.y;
+	int z = threadIdx.z + blockIdx.z*blockDim.z;
+	// Get high indices
+	size_t x_high = x + 1 + (size_t)w*y + (size_t)h*w*z;
+	size_t y_high = x + (size_t)w*(y+1) + (size_t)h*w*z;
+	size_t idx = x + (size_t)w*y + (size_t)h*w*z;
+	// Ensure no threads are out of problem domain
+	if (idx < sizeImg){
+	// Compute gradient
+		if (x < w-1){
+			d_gradx[idx] = d_imgIn[x_high] - d_imgIn[idx];
+		} else
+			d_gradx[idx] = 0;
+		if (y < h-1){
+			d_grady[idx] = d_imgIn[y_high] - d_imgIn[idx];
+		} else
+			d_grady[idx] = 0;
 	}
 }
+
+// Compute divergence
+__global__ void compute_divergence(float *d_div, float *d_v_1, float *d_v_2, float *d_imgIn, int w, int h, int sizeImg){
+	// Get x y z pixel coordinates in 3D kernel
+	int x = threadIdx.x + blockIdx.x*blockDim.x;
+	int y = threadIdx.y + blockIdx.y*blockDim.y;
+	int z = threadIdx.z + blockIdx.z*blockDim.z;
+	// Get low indices
+	size_t idx = x + (size_t)w*y + (size_t)h*w*z;
+	size_t x_low = x-1 + (size_t)w*y + (size_t)h*w*z;
+	size_t y_low = x + (size_t)w*(y-1) + (size_t)h*w*z;
+	// Ensure no threads are out of problem domain
+	if (idx < sizeImg){
+		// Compute divergence
+		if (x > 1){
+			d_v_1[idx] = d_imgIn[idx] - d_imgIn[x_low];
+		} else
+			d_v_1[idx] = 0;
+		if (y > 1){
+			d_v_2[idx] = d_imgIn[idx] - d_imgIn[y_low];
+		} else
+			d_v_2[idx] = 0;
+		// Sum gradients
+		d_div[idx] = d_v_1[idx] + d_v_2[idx];
+	}
+}
+
+// Compute L2 norm
+__global__ void compute_norm(float *d_norm, float *d_div, int w, int h, int nc, int sizeImg){
+	// Temporary variable for norm
+	float sqrd = 0;
+	float val = 0;
+	// Get coordinates
+	int x = threadIdx.x + blockIdx.x*blockDim.x;
+	int y = threadIdx.y + blockIdx.y*blockDim.y;
+	size_t idx = x + (size_t)w*y;
+	// Compute L2 norm
+	for (size_t i = 0; i < nc; i++){
+		size_t idx_3d = idx + (size_t)i*w*h;
+		// Ensure no threads are out of problem domain
+		if (idx_3d < sizeImg){
+			val = d_div[idx_3d];
+			sqrd += val*val;
+		}
+	}
+	d_norm[idx] = sqrtf(sqrd);
+}
+
+
 
 int main(int argc, char **argv)
 {
@@ -32,6 +98,9 @@ int main(int argc, char **argv)
     // This happens on the very first call to a CUDA function, and takes some time (around half a second)
     // We will do it right here, so that the run time measurements are accurate
     cudaDeviceSynchronize();  CUDA_CHECK;
+
+
+
 
     // Reading command line parameters:
     // getParam("param", var, argc, argv) looks whether "-param xyz" is specified, and if so stores the value "xyz" in "var"
@@ -102,9 +171,9 @@ int main(int argc, char **argv)
     // ### TODO: Change the output image format as needed
     // ###
     // ###
-    cv::Mat mOut(h,w,mIn.type());  // mOut will have the same number of channels as the input image, nc layers
+    //cv::Mat mOut(h,w,mIn.type());  // mOut will have the same number of channels as the input image, nc layers
     //cv::Mat mOut(h,w,CV_32FC3);    // mOut will be a color image, 3 layers
-    //cv::Mat mOut(h,w,CV_32FC1);    // mOut will be a grayscale image, 1 layer
+    cv::Mat mOut(h,w,CV_32FC1);    // mOut will be a grayscale image, 1 layer
     // ### Define your own output images here as needed
 
 
@@ -147,10 +216,6 @@ int main(int argc, char **argv)
     convert_mat_to_layered (imgIn, mIn);
 
 
-
-
-
-
     Timer timer; timer.start();
     // ###
     // ###
@@ -160,36 +225,59 @@ int main(int argc, char **argv)
     timer.end();  float t = timer.get();  // elapsed time in seconds
     cout << "time: " << t*1000 << " ms" << endl;
 
+
+	// Setup
 	int sizeImg = (int)w*h*nc;
+	int sizeNorm = (int)w*h;
 	size_t nbytes = (size_t)(sizeImg)*sizeof(float);
-	float gamma = 3.1f;
+	size_t nbytes_norm = (size_t)(sizeNorm)*sizeof(float);
 
-	///////////////////////////////// Gamma correction - CPU Computation /////////////////////////////////
+	////////////////////////////////////////////// Gradient //////////////////////////////////////////////
 
-	/*for (int i = 0; i < sizeImg; i++){
-		imgOut[i] = pow(imgIn[i], gamma);
-	}*/
-
-	//////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-	///////////////////////////////// Gamma correction - GPU Computation /////////////////////////////////
-
-	float *d_imgOut = NULL;	
-	float *d_imgIn  = NULL; 
-	cudaMalloc(&d_imgIn, nbytes);	CUDA_CHECK;
-	cudaMalloc(&d_imgOut, nbytes);	CUDA_CHECK;
+	float *d_imgIn = NULL;
+	float *d_imgOut = NULL;
+	float *d_gradx = NULL;
+	float *d_grady = NULL;
+	cudaMalloc(&d_gradx, nbytes); CUDA_CHECK;
+	cudaMalloc(&d_grady, nbytes); CUDA_CHECK;
+	cudaMalloc(&d_imgIn, nbytes); CUDA_CHECK;
+	cudaMalloc(&d_imgOut, nbytes); CUDA_CHECK;
 	cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);	CUDA_CHECK;
 	// Launch kernel
-    dim3 block = dim3(128, 1, 1);
-    dim3 grid = dim3((sizeImg+block.x-1)/block.x, 1, 1);
-	// Execute gamma correction
-	gamma_correction <<<grid, block>>> (d_imgOut, d_imgIn, sizeImg, gamma);
-	// Copy back to CPU
-	cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); CUDA_CHECK;
-	cudaFree(d_imgOut); CUDA_CHECK;
+	dim3 block = dim3(128, 1, 1);
+	dim3 grid = dim3((w+block.x-1)/block.x, (h+block.y-1)/block.y, (nc+block.z-1)/block.z);
+	// Compute gradient
+	compute_gradient <<<grid, block>>> (d_gradx, d_grady, d_imgIn, w, h, sizeImg);
 
-	//////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////// Divergence /////////////////////////////////////////////
+
+	float *d_div = NULL;
+	cudaMalloc(&d_div, nbytes); CUDA_CHECK;
+	// Compute divergence
+	compute_divergence <<<grid, block>>> (d_div, d_gradx, d_grady, d_imgIn, w, h, sizeImg);
+	// Copy back to CPU
+	//cudaMemcpy(imgOut, d_div, nbytes, cudaMemcpyDeviceToHost); CUDA_CHECK;
+
+	///////////////////////////////////////////// L2 Norm ///////////////////////////////////////////////
+
+	float *d_norm = NULL;
+	cudaMalloc(&d_norm, nbytes_norm); CUDA_CHECK;
+	// Compute L2 norm
+	compute_norm <<<grid, block>>> (d_norm, d_div, w, h, nc, sizeImg);
+	// Copy back to CPU
+	cudaMemcpy(imgOut, d_norm, nbytes_norm, cudaMemcpyDeviceToHost); CUDA_CHECK;
+
+	/////////////////////////////////////////////////////
+
+	// Free memory
+	cudaFree(d_imgIn);  CUDA_CHECK;
+	cudaFree(d_imgOut); CUDA_CHECK;
+	cudaFree(d_gradx);  CUDA_CHECK;
+	cudaFree(d_grady);  CUDA_CHECK;
+	cudaFree(d_div);	CUDA_CHECK;
+	cudaFree(d_norm);	CUDA_CHECK;
+
+	/////////////////////////////////////////////////////
 
     // show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
@@ -208,9 +296,6 @@ int main(int argc, char **argv)
     cv::waitKey(0);
 #endif
 
-
-
-
     // save input and result
     cv::imwrite("image_input.png",mIn*255.f);  // "imwrite" assumes channel range [0,255]
     cv::imwrite("image_result.png",mOut*255.f);
@@ -223,6 +308,3 @@ int main(int argc, char **argv)
     cvDestroyAllWindows();
     return 0;
 }
-
-
-
