@@ -184,7 +184,7 @@ int main(int argc, char **argv)
     getParam("gray", gray, argc, argv);
     cout << "gray: " << gray << endl;
 	// Convolution kernel
-	float sigma = 3.0;
+	float sigma = 10.0;
 	getParam("sigma", sigma, argc, argv);
 	cout << "sigma: " << sigma << endl;
 

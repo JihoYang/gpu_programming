@@ -7,50 +7,147 @@
 // ### Summer Semester 2017, September 11 - October 9
 // ###
 
-// Exercise 8
+// Exercise 5
 
 // Written by: Jiho Yang (M.Sc student in Computational Science & Engineering)
 // Matriculation number: 03675799
 
 #include "helper.h"
 #include <iostream>
+#include <string>
+#include <unistd.h>
 using namespace std;
+
+const float pi = 3.141592653589793238462f;
 
 // uncomment to use the camera
 //#define CAMERA
 
-// Compute eigenvalue of a 2x2 matrix
-__device__ void compute_eigenvalue(float **A, float *eigval_1, float *eigval_2, float *eigvec_1, float *eigvec_2){
-	// Get a b c d;
-	float a = A[0][0];
-	float b = A[0][1];
-	float c = A[1][0];
-	float d = A[1][1];
-	// Trace and determinant
-	float T = a + d;
-	float D = a*d - b*c;
-	// Compute eigenvalue
-	*eigval_1 = T/2 + sqrtf(T*T/4 - D);
-	*eigval_2 = T/2 - sqrtf(T*T/4 - D);
-	// Compute eigenvector
-	if (c != 0){
-		eigvec_1[0] = *eigval_1 - d;
-		eigvec_2[0] = *eigval_2 - d;
-		eigvec_1[1] = c;
-		eigvec_2[1] = c;
-	} else if (b != 0){
-		eigvec_1[0] = b;
-		eigvec_2[0] = b;
-		eigvec_1[1] = *eigval_1 - a;
-		eigvec_2[1] = *eigval_2 - a;
-	} else if (b == 0 && c == 0){
-		eigvec_1[0] = 1;
-		eigvec_2[0] = 0;
-		eigvec_1[1] = 0;
-		eigvec_2[1] = 1;
+// Set up kernel
+void get_kernel(float *kernel, float *kernel_cpy, int w_kernel, int h_kernel, const float pi, float sigma){
+	//Set up parameters
+	int origin = w_kernel/2;
+	float total = 0.0f;
+	// Define 2D Gaussian kernel
+	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
+		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
+			int a = x_kernel - origin;
+			int b = y_kernel - origin;
+			int idx = x_kernel + w_kernel*y_kernel;
+			kernel[idx] = (1.0f / (2.0f*pi*sigma*sigma))*exp(-1*((a*a+b*b) / (2*sigma*sigma)));
+			total += kernel[idx];
+		}
+	}
+	// Normalise kernel
+	float max = 0.0;
+	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
+		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
+			int idx = x_kernel + w_kernel*y_kernel;
+			kernel[idx] /= total;
+			if (kernel[idx] > max){
+				max = kernel[idx];
+			}
+		}
+	}
+	// Copy of normalised kernel
+	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
+		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
+			int idx = x_kernel + w_kernel*y_kernel;
+			kernel_cpy[idx] = kernel[idx] / max;
+		}
+	}
+}
+	
+// Convolution on GPU
+__global__ void convolution_gpu(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel){
+	// Get coordinates
+	int x = threadIdx.x + blockDim.x*blockIdx.x;
+	int y = threadIdx.y + blockDim.y*blockIdx.y;
+	int z = threadIdx.z + blockDim.z*blockIdx.z;
+	// Get indices
+	size_t idx = x + (size_t)w*y;
+	size_t idx_3d = idx + (size_t)w*h*z;
+	// Initialise d_imgOut
+	d_imgOut[idx_3d] = 0.0f;
+	// Set origin
+	int mid = (w_kernel-1)/2;
+	// Convolution - Note x_kernel is the global x coordinate of kernel in the problem domain
+	if (x < w && y < h && z < nc){
+		for (size_t j = 0; j < h_kernel; j++){
+			for (size_t i = 0; i < w_kernel; i++){
+				// Boundary condition
+				int x_kernel_global = x - mid + i;
+				int y_kernel_global = y - mid + j;
+				// clamping
+				if (x_kernel_global < 0){
+					x_kernel_global = 0;
+				}
+				if (x_kernel_global > w-1){
+					x_kernel_global = w - 1;
+				}
+				if (y_kernel_global < 0){
+					y_kernel_global = 0;
+				}
+				if (y_kernel_global > h - 1){
+					y_kernel_global = h - 1;
+				}
+				// Get indices
+				int idx_kernel_local = i + w_kernel*j;
+				int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*z;
+				// Multiply kernel to image
+				float ku = d_kernel[idx_kernel_local] * d_imgIn[idx_kernel_global];
+				// Sum up the results
+				d_imgOut[idx_3d] += ku;
+			}
+		}
 	}
 }
 
+// Convolution on CPU
+void convolution_cpu(float *imgIn, float *imgOut, float *kernel, int w, int h, int nc, int w_kernel, int h_kernel){
+	// Loop over all pixels
+	for (size_t z = 0; z < nc; z++){
+		for (size_t y = 0; y < h; y++){
+			for (size_t x = 0; x < w; x++){
+				// Get indices
+				size_t idx = x + (size_t)w*y;
+				size_t idx_3d = idx + (size_t)w*h*z;
+				// Initialise d_imgOut
+				imgOut[idx_3d] = 0.0f;
+				// Set origin
+				int mid = (w_kernel-1)/2;
+				// Convolution - Note x_kernel is the global x coordinate of kernel in the problem domain
+				for (size_t j = 0; j < h_kernel; j++){
+					for (size_t i = 0; i < w_kernel; i++){
+						// Boundary condition
+						int x_kernel_global = x - mid + i;
+						int y_kernel_global = y - mid + j;
+						// clamping
+						if (x_kernel_global < 0){
+							x_kernel_global = 0;
+						}
+						if (x_kernel_global > w-1){
+							x_kernel_global = w - 1;
+						}
+						if (y_kernel_global < 0){
+							y_kernel_global = 0;
+						}
+						if (y_kernel_global > h - 1){
+							y_kernel_global = h - 1;
+						}
+						// Get indices
+						int idx_kernel_local = i + w_kernel*j;
+						int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*z;
+						// Multiply kernel to image
+						float ku = kernel[idx_kernel_local] * imgIn[idx_kernel_global];
+						// Sum up the results
+						imgOut[idx_3d] += ku;
+					}
+				}
+			}
+		}
+	}
+}
 
 int main(int argc, char **argv)
 {
@@ -86,6 +183,10 @@ int main(int argc, char **argv)
     bool gray = false;
     getParam("gray", gray, argc, argv);
     cout << "gray: " << gray << endl;
+	// Convolution kernel
+	float sigma = 10.0;
+	getParam("sigma", sigma, argc, argv);
+	cout << "sigma: " << sigma << endl;
 
     // ### Define your own parameters here as needed    
 
@@ -120,6 +221,11 @@ int main(int argc, char **argv)
     int w = mIn.cols;         // width
     int h = mIn.rows;         // height
     int nc = mIn.channels();  // number of channels
+	// Define kernel dimensions
+	int r = ceil(3*sigma);
+	int w_kernel = r*2 + 1;	  //windowing
+	int h_kernel = w_kernel;  //Square kernel
+	// Kernel information
     cout << "image: " << w << " x " << h << endl;
 
 
@@ -131,10 +237,11 @@ int main(int argc, char **argv)
     // ### TODO: Change the output image format as needed
     // ###
     // ###
-    //cv::Mat mOut(h,w,mIn.type());  // mOut will have the same number of channels as the input image, nc layers
+    cv::Mat mOut(h,w,mIn.type());  // mOut will have the same number of channels as the input image, nc layers
     //cv::Mat mOut(h,w,CV_32FC3);    // mOut will be a color image, 3 layers
-    cv::Mat mOut(h,w,CV_32FC1);    // mOut will be a grayscale image, 1 layer
+    //cv::Mat mOut(h,w,CV_32FC1);    // mOut will be a grayscale image, 1 layer
     // ### Define your own output images here as needed
+ 	cv::Mat mKernel(h_kernel, w_kernel, CV_32FC1); 
 
 
 
@@ -145,8 +252,12 @@ int main(int argc, char **argv)
     // input image number of channels: nc
     // output image number of channels: mOut.channels(), as defined above (nc, 3, or 1)
 
+	// Get array memory
+	int nbytes_kernel = w_kernel * h_kernel * sizeof(float);
+	int nbytes = w * h * nc * sizeof(float);
+
     // allocate raw input image array
-    float *imgIn = new float[(size_t)w*h*nc];
+    float *imgIn = new float[(size_t)nbytes];
 
     // allocate raw output array (the computation result will be stored in this array, then later converted to mOut for displaying)
     float *imgOut = new float[(size_t)w*h*mOut.channels()];
@@ -182,27 +293,65 @@ int main(int argc, char **argv)
     // ### TODO: Main computation
     // ###
     // ###
+
+	// Kernel memory allocation
+	float *kernel = new float[nbytes_kernel]; 
+	float *kernel_cpy = new float[nbytes_kernel];
+	// Create kernel
+	get_kernel(kernel, kernel_cpy, w_kernel, h_kernel, pi, sigma);
+	// Processor type
+	string processor;
+
+	////////////////////////////////////////////////////////////////////// CPU ////////////////////////////////////////////////////////////////////// 
+	/*
+	// Convolution
+	convolution_cpu(imgIn, imgOut, kernel, w, h, nc, w_kernel, h_kernel);
+	// Type of processor
+	processor = "CPU";
+	*/
+	////////////////////////////////////////////////////////////////////// GPU ////////////////////////////////////////////////////////////////////// 
+	
+	// Arrays
+	float *d_kernel;
+	float *d_imgIn;
+	float *d_imgOut;
+	// CUDA
+    cudaMalloc(&d_kernel, nbytes_kernel);	CUDA_CHECK;
+    cudaMalloc(&d_imgIn, nbytes); 			CUDA_CHECK;
+    cudaMalloc(&d_imgOut, nbytes); 			CUDA_CHECK;
+    cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);	CUDA_CHECK;
+    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    CUDA_CHECK;
+    dim3 block = dim3(128, 1, 1); 
+    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1) / block.z);
+	// Convolution
+    convolution_gpu <<< grid, block >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel);	CUDA_CHECK;
+	cudaDeviceSynchronize(); 																			CUDA_CHECK;
+    cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 										CUDA_CHECK;
+ 	// Free memory
+    cudaFree(d_imgIn);  CUDA_CHECK;
+    cudaFree(d_imgOut); CUDA_CHECK;
+    cudaFree(d_kernel); CUDA_CHECK;
+	// Type of processor
+	processor = "GPU";
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
     timer.end();  float t = timer.get();  // elapsed time in seconds
     cout << "time: " << t*1000 << " ms" << endl;
-
-	//2D matrix
-	float A[2][2] = {{1, 0},
-					 {0, 1}};
-
-	/////////////////////////////////////////////////////
-
+	cout << "Processor: " << processor << endl;
     // show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
-
     // show output image: first convert to interleaved opencv format from the layered raw array
     convert_layered_to_mat(mOut, imgOut);
+	convert_layered_to_mat(mKernel, kernel_cpy);
     showImage("Output", mOut, 100+w+40, 100);
+	showImage("Gaussian Kernel", mKernel, 100 + w + 40, 100);
 
     // ### Display your own output images here as needed
 
 #ifdef CAMERA
     // end of camera loop
-    }
 #else
     // wait for key inputs
     cv::waitKey(0);
@@ -212,9 +361,16 @@ int main(int argc, char **argv)
     cv::imwrite("image_input.png",mIn*255.f);  // "imwrite" assumes channel range [0,255]
     cv::imwrite("image_result.png",mOut*255.f);
 
-    // free allocated arrays
-    delete[] imgIn;
-    delete[] imgOut;
+	// free allocated arrays
+#ifdef CAMERA
+	delete[] imgIn;
+	delete[] imgOut;
+#else
+	delete[] imgIn;
+	delete[] imgOut;
+	delete[] kernel;
+	delete[] kernel_cpy;
+#endif
 
     // close all opencv windows
     cvDestroyAllWindows();

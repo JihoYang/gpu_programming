@@ -1,0 +1,3 @@
+<<Exercise 5>>
+
+	5. As sigma increases run time also increases

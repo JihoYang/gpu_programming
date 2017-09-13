@@ -1,24 +1,24 @@
 Determining if the pthread_create exist failed with the following output:
-Change Dir: /usr/prakt/s151/gpu_programming/session_2/exercise_8/framework/build_cmake/CMakeFiles/CMakeTmp
+Change Dir: /usr/prakt/s151/gpu_programming/session_1/exercise_5/framework/build_cmake/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_f5269/fast"
-/usr/bin/make -f CMakeFiles/cmTC_f5269.dir/build.make CMakeFiles/cmTC_f5269.dir/build
-make[1]: Entering directory '/usr/prakt/s151/gpu_programming/session_2/exercise_8/framework/build_cmake/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_f5269.dir/CheckSymbolExists.c.o
-/usr/bin/cc    -fPIC    -o CMakeFiles/cmTC_f5269.dir/CheckSymbolExists.c.o   -c /usr/prakt/s151/gpu_programming/session_2/exercise_8/framework/build_cmake/CMakeFiles/CMakeTmp/CheckSymbolExists.c
-Linking C executable cmTC_f5269
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f5269.dir/link.txt --verbose=1
-/usr/bin/cc  -fPIC     CMakeFiles/cmTC_f5269.dir/CheckSymbolExists.c.o  -o cmTC_f5269 -rdynamic 
-CMakeFiles/cmTC_f5269.dir/CheckSymbolExists.c.o: In function `main':
+Run Build Command:"/usr/bin/make" "cmTC_92269/fast"
+/usr/bin/make -f CMakeFiles/cmTC_92269.dir/build.make CMakeFiles/cmTC_92269.dir/build
+make[1]: Entering directory '/usr/prakt/s151/gpu_programming/session_1/exercise_5/framework/build_cmake/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_92269.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -fPIC    -o CMakeFiles/cmTC_92269.dir/CheckSymbolExists.c.o   -c /usr/prakt/s151/gpu_programming/session_1/exercise_5/framework/build_cmake/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_92269
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_92269.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC     CMakeFiles/cmTC_92269.dir/CheckSymbolExists.c.o  -o cmTC_92269 -rdynamic 
+CMakeFiles/cmTC_92269.dir/CheckSymbolExists.c.o: In function `main':
 CheckSymbolExists.c:(.text+0x1b): undefined reference to `pthread_create'
 collect2: error: ld returned 1 exit status
-CMakeFiles/cmTC_f5269.dir/build.make:97: recipe for target 'cmTC_f5269' failed
-make[1]: *** [cmTC_f5269] Error 1
-make[1]: Leaving directory '/usr/prakt/s151/gpu_programming/session_2/exercise_8/framework/build_cmake/CMakeFiles/CMakeTmp'
-Makefile:126: recipe for target 'cmTC_f5269/fast' failed
-make: *** [cmTC_f5269/fast] Error 2
+CMakeFiles/cmTC_92269.dir/build.make:97: recipe for target 'cmTC_92269' failed
+make[1]: *** [cmTC_92269] Error 1
+make[1]: Leaving directory '/usr/prakt/s151/gpu_programming/session_1/exercise_5/framework/build_cmake/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_92269/fast' failed
+make: *** [cmTC_92269/fast] Error 2
 
-File /usr/prakt/s151/gpu_programming/session_2/exercise_8/framework/build_cmake/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+File /usr/prakt/s151/gpu_programming/session_1/exercise_5/framework/build_cmake/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
 /* */
 #include <pthread.h>
 
@@ -34,22 +34,22 @@ int main(int argc, char** argv)
 }
 
 Determining if the function pthread_create exists in the pthreads failed with the following output:
-Change Dir: /usr/prakt/s151/gpu_programming/session_2/exercise_8/framework/build_cmake/CMakeFiles/CMakeTmp
+Change Dir: /usr/prakt/s151/gpu_programming/session_1/exercise_5/framework/build_cmake/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_c7f16/fast"
-/usr/bin/make -f CMakeFiles/cmTC_c7f16.dir/build.make CMakeFiles/cmTC_c7f16.dir/build
-make[1]: Entering directory '/usr/prakt/s151/gpu_programming/session_2/exercise_8/framework/build_cmake/CMakeFiles/CMakeTmp'
-Building C object CMakeFiles/cmTC_c7f16.dir/CheckFunctionExists.c.o
-/usr/bin/cc    -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_c7f16.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.5/Modules/CheckFunctionExists.c
-Linking C executable cmTC_c7f16
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c7f16.dir/link.txt --verbose=1
-/usr/bin/cc  -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_c7f16.dir/CheckFunctionExists.c.o  -o cmTC_c7f16 -rdynamic -lpthreads 
+Run Build Command:"/usr/bin/make" "cmTC_7965a/fast"
+/usr/bin/make -f CMakeFiles/cmTC_7965a.dir/build.make CMakeFiles/cmTC_7965a.dir/build
+make[1]: Entering directory '/usr/prakt/s151/gpu_programming/session_1/exercise_5/framework/build_cmake/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_7965a.dir/CheckFunctionExists.c.o
+/usr/bin/cc    -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_7965a.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.5/Modules/CheckFunctionExists.c
+Linking C executable cmTC_7965a
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_7965a.dir/link.txt --verbose=1
+/usr/bin/cc  -fPIC -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_7965a.dir/CheckFunctionExists.c.o  -o cmTC_7965a -rdynamic -lpthreads 
 /usr/bin/ld: cannot find -lpthreads
 collect2: error: ld returned 1 exit status
-CMakeFiles/cmTC_c7f16.dir/build.make:97: recipe for target 'cmTC_c7f16' failed
-make[1]: *** [cmTC_c7f16] Error 1
-make[1]: Leaving directory '/usr/prakt/s151/gpu_programming/session_2/exercise_8/framework/build_cmake/CMakeFiles/CMakeTmp'
-Makefile:126: recipe for target 'cmTC_c7f16/fast' failed
-make: *** [cmTC_c7f16/fast] Error 2
+CMakeFiles/cmTC_7965a.dir/build.make:97: recipe for target 'cmTC_7965a' failed
+make[1]: *** [cmTC_7965a] Error 1
+make[1]: Leaving directory '/usr/prakt/s151/gpu_programming/session_1/exercise_5/framework/build_cmake/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_7965a/fast' failed
+make: *** [cmTC_7965a/fast] Error 2
 
 
