@@ -19,44 +19,52 @@ using namespace std;
 const float pi = 3.141592653589793238462f;
 
 // uncomment to use the camera
-//#define CAMERA
+#define CAMERA
 
+// Convolution
 __global__ void convolution(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel){
 	// Get coordinates
 	int x = threadIdx.x + blockDim.x*blockIdx.x;
 	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	// Get index
-	size_t ind = x + (size_t)w*y;
-	// 
-	int mid = w_kernel/2;
-	
-	if (x < w && y < h){
-		for (size_t c = 0; c < nc; c++){
-			d_imgOut[ind + w*h*c] = 0;
-			for (size_t k = 0; k < w_kernel; k++){
-				for (size_t l = 0; l < h_kernel; l++){
-					int i_kernel = x - mid + k;
-					int j_kernel = y - mid + l;
-				if (i_kernel < 0){
-					i_kernel = 0;
-				}
-				if (i_kernel > w - 1){
-					i_kernel = w - 1;
-				}
-				if (j_kernel > h - 1){
-					j_kernel = h - 1;
-				}
-				if (j_kernel < 0){
-					j_kernel = 0;
-				}
-				d_imgOut[ind + w*h*c] += d_kernel[l+w_kernel+k]*d_imgIn[j_kernel*w + i_kernel + w*h*c];
-				}
+	int z = threadIdx.z + blockDim.z*blockIdx.z;
+	// Get indices
+	size_t idx = x + (size_t)w*y;
+	size_t idx_3d = idx + (size_t)w*h*z;
+	// Initialise d_imgOut
+	d_imgOut[idx_3d] = 0.0f;
+	// Set origin
+	int mid = (w_kernel-1)/2;
+	// Convolution - Note x_kernel is the global x coordinate of kernel in the problem domain
+	if (x < w && y < h && z < nc){
+		for (size_t j = 0; j < h_kernel; j++){
+			for (size_t i = 0; i < w_kernel; i++){
+			// Boundary condition
+			int x_kernel_global = x - mid + i;
+			int y_kernel_global = y - mid + j;
+			// clamping
+			if (x_kernel_global < 0){
+				x_kernel_global = 0;
+			}
+			if (x_kernel_global > w-1){
+				x_kernel_global = w - 1;
+			}
+			if (y_kernel_global < 0){
+				y_kernel_global = 0;
+			}
+			if (y_kernel_global > h - 1){
+				y_kernel_global = h - 1;
+			}
+			// Get indices
+			int idx_kernel_local = i + w_kernel*j;
+			int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*z;
+			// Multiply kernel to image
+			float ku = d_kernel[idx_kernel_local] * d_imgIn[idx_kernel_global];
+			// Sum up the results
+			d_imgOut[idx_3d] += ku;
 			}
 		}
 	}
 }
-
-
 
 int main(int argc, char **argv)
 {
@@ -93,7 +101,7 @@ int main(int argc, char **argv)
     getParam("gray", gray, argc, argv);
     cout << "gray: " << gray << endl;
 	// Convolution kernel
-	float sigma = 1.0;
+	float sigma = 3.0;
 	getParam("sigma", sigma, argc, argv);
 	cout << "sigma: " << sigma << endl;
 
@@ -130,10 +138,11 @@ int main(int argc, char **argv)
     int w = mIn.cols;         // width
     int h = mIn.rows;         // height
     int nc = mIn.channels();  // number of channels
-	// Kernel information
+	// Define kernel dimensions
 	int r = ceil(3*sigma);
-	int w_kernel = r*2 + 1;
-	int h_kernel = w_kernel;
+	int w_kernel = r*2 + 1;	  //windowing
+	int h_kernel = w_kernel;  //Square kernel
+	// Kernel information
     cout << "image: " << w << " x " << h << endl;
 
 
@@ -197,46 +206,59 @@ int main(int argc, char **argv)
     // ### TODO: Main computation
     // ###
     // ###
-
+	
+	// CUDA arrays
 	float *d_kernel;
 	float *d_imgIn;
 	float *d_imgOut;
-	float *kernel = new float[w_kernel*w_kernel]; // squared kernel
-	float *kernel_n = new float[w_kernel*w_kernel];
-	int mid = w_kernel / 2;
-	float sum = 0.0f;
-	for (size_t i = 0; i < w_kernel; i++){
-		for (size_t j = 0; j < h_kernel; j++){
-			kernel[j + i*h_kernel] = (1.0f/(2.0f*pi*sigma*sigma))*exp(-1 *(((i-mid)*(i-mid)+(j-mid)*(j-mid)) / (2*sigma*sigma)));
-		sum += kernel[j + i*h_kernel];
+	// Kernel
+	float *kernel = new float[w_kernel*w_kernel]; 
+	float *kernel_cpy = new float[w_kernel*w_kernel];
+	int origin = w_kernel/2;
+	float total = 0.0f;
+	// Define 2D Gaussian kernel
+	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
+		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
+			int a = x_kernel - origin;
+			int b = y_kernel - origin;
+			int idx = x_kernel + w_kernel*y_kernel;
+			kernel[idx] = (1.0f / (2.0f*pi*sigma*sigma))*exp(-1*((a*a+b*b) / (2*sigma*sigma)));
+			total += kernel[idx];
 		}
 	}
-	// Normalise the kernel sum
-	float max = 0.0f;
-	for (size_t i = 0; i < w_kernel; i++){
-		for (size_t j = 0; j < h_kernel; j++){
-			kernel[j + i*h_kernel] /= sum;
-			if (kernel[j + i*h_kernel] > max){
-				max = kernel[j + i*h_kernel];
+	// Normalise kernel
+	float max = 0.0;
+	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
+		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
+			int idx = x_kernel + w_kernel*y_kernel;
+			kernel[idx] /= total;
+			if (kernel[idx] > max){
+				max = kernel[idx];
 			}
 		}
 	}
-	for (size_t i = 0; i < w_kernel; i++){
-		for (size_t j = 0; j < h_kernel; j++){
-			kernel_n[j + i*h_kernel] = kernel[j + i*h_kernel] / max;
+	// Copy of normalised kernel
+	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
+		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
+			int idx = x_kernel + w_kernel*y_kernel;
+			kernel_cpy[idx] = kernel[idx] / max;
 		}
 	}
+
+	// Get malloc sizes
+	int nbytes_kernel = w_kernel * h_kernel * sizeof(float);
+	int nbytes = w * h * nc * sizeof(float);
 	// CUDA
-    cudaMalloc(&d_kernel, w_kernel * h_kernel * sizeof(float));
-    cudaMalloc(&d_imgIn, nc * w * h * sizeof(float));
-    cudaMalloc(&d_imgOut, nc * w * h * sizeof(float));
-    cudaMemcpy(d_kernel, kernel, w_kernel * h_kernel * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_imgIn, imgIn, nc * w * h * sizeof(float), cudaMemcpyHostToDevice);
-    dim3 block = dim3(32, 8, 1); // 32*8 = 256 threads
-    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, 1);
+    cudaMalloc(&d_kernel, nbytes_kernel);
+    cudaMalloc(&d_imgIn, nbytes);
+    cudaMalloc(&d_imgOut, nbytes);
+    cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);
+    dim3 block = dim3(128, 1, 1); 
+    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1) / block.z);
 	// Convolution
     convolution <<< grid, block >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel);            
-    cudaMemcpy(imgOut, d_imgOut, nc * w * h * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost);
  	// Free memory
     cudaFree(d_imgIn);
     cudaFree(d_imgOut);
@@ -244,13 +266,11 @@ int main(int argc, char **argv)
 
     timer.end();  float t = timer.get();  // elapsed time in seconds
     cout << "time: " << t*1000 << " ms" << endl;
-
     // show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
-
     // show output image: first convert to interleaved opencv format from the layered raw array
     convert_layered_to_mat(mOut, imgOut);
-	convert_layered_to_mat(mKernel, kernel_n);
+	convert_layered_to_mat(mKernel, kernel_cpy);
     showImage("Output", mOut, 100+w+40, 100);
 	showImage("Gaussian Kernel", mKernel, 100 + w + 40, 100);
 
@@ -271,6 +291,8 @@ int main(int argc, char **argv)
     // free allocated arrays
     delete[] imgIn;
     delete[] imgOut;
+	//delete[] kernel;
+	//delete[] kernel_cpy;
 
     // close all opencv windows
     cvDestroyAllWindows();
