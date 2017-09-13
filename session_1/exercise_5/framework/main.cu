@@ -14,15 +14,52 @@
 
 #include "helper.h"
 #include <iostream>
+#include <string>
+#include <unistd.h>
 using namespace std;
 
 const float pi = 3.141592653589793238462f;
 
 // uncomment to use the camera
-#define CAMERA
+//#define CAMERA
 
-// Convolution
-__global__ void convolution(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel){
+// Set up kernel
+void get_kernel(float *kernel, float *kernel_cpy, int w_kernel, int h_kernel, const float pi, float sigma){
+	//Set up parameters
+	int origin = w_kernel/2;
+	float total = 0.0f;
+	// Define 2D Gaussian kernel
+	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
+		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
+			int a = x_kernel - origin;
+			int b = y_kernel - origin;
+			int idx = x_kernel + w_kernel*y_kernel;
+			kernel[idx] = (1.0f / (2.0f*pi*sigma*sigma))*exp(-1*((a*a+b*b) / (2*sigma*sigma)));
+			total += kernel[idx];
+		}
+	}
+	// Normalise kernel
+	float max = 0.0;
+	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
+		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
+			int idx = x_kernel + w_kernel*y_kernel;
+			kernel[idx] /= total;
+			if (kernel[idx] > max){
+				max = kernel[idx];
+			}
+		}
+	}
+	// Copy of normalised kernel
+	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
+		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
+			int idx = x_kernel + w_kernel*y_kernel;
+			kernel_cpy[idx] = kernel[idx] / max;
+		}
+	}
+}
+	
+// Convolution on GPU
+__global__ void convolution_gpu(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel){
 	// Get coordinates
 	int x = threadIdx.x + blockDim.x*blockIdx.x;
 	int y = threadIdx.y + blockDim.y*blockIdx.y;
@@ -38,29 +75,75 @@ __global__ void convolution(float *d_imgIn, float *d_imgOut, float *d_kernel, in
 	if (x < w && y < h && z < nc){
 		for (size_t j = 0; j < h_kernel; j++){
 			for (size_t i = 0; i < w_kernel; i++){
-			// Boundary condition
-			int x_kernel_global = x - mid + i;
-			int y_kernel_global = y - mid + j;
-			// clamping
-			if (x_kernel_global < 0){
-				x_kernel_global = 0;
+				// Boundary condition
+				int x_kernel_global = x - mid + i;
+				int y_kernel_global = y - mid + j;
+				// clamping
+				if (x_kernel_global < 0){
+					x_kernel_global = 0;
+				}
+				if (x_kernel_global > w-1){
+					x_kernel_global = w - 1;
+				}
+				if (y_kernel_global < 0){
+					y_kernel_global = 0;
+				}
+				if (y_kernel_global > h - 1){
+					y_kernel_global = h - 1;
+				}
+				// Get indices
+				int idx_kernel_local = i + w_kernel*j;
+				int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*z;
+				// Multiply kernel to image
+				float ku = d_kernel[idx_kernel_local] * d_imgIn[idx_kernel_global];
+				// Sum up the results
+				d_imgOut[idx_3d] += ku;
 			}
-			if (x_kernel_global > w-1){
-				x_kernel_global = w - 1;
-			}
-			if (y_kernel_global < 0){
-				y_kernel_global = 0;
-			}
-			if (y_kernel_global > h - 1){
-				y_kernel_global = h - 1;
-			}
-			// Get indices
-			int idx_kernel_local = i + w_kernel*j;
-			int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*z;
-			// Multiply kernel to image
-			float ku = d_kernel[idx_kernel_local] * d_imgIn[idx_kernel_global];
-			// Sum up the results
-			d_imgOut[idx_3d] += ku;
+		}
+	}
+}
+
+// Convolution on CPU
+void convolution_cpu(float *imgIn, float *imgOut, float *kernel, int w, int h, int nc, int w_kernel, int h_kernel){
+	// Loop over all pixels
+	for (size_t z = 0; z < nc; z++){
+		for (size_t y = 0; y < h; y++){
+			for (size_t x = 0; x < w; x++){
+				// Get indices
+				size_t idx = x + (size_t)w*y;
+				size_t idx_3d = idx + (size_t)w*h*z;
+				// Initialise d_imgOut
+				imgOut[idx_3d] = 0.0f;
+				// Set origin
+				int mid = (w_kernel-1)/2;
+				// Convolution - Note x_kernel is the global x coordinate of kernel in the problem domain
+				for (size_t j = 0; j < h_kernel; j++){
+					for (size_t i = 0; i < w_kernel; i++){
+						// Boundary condition
+						int x_kernel_global = x - mid + i;
+						int y_kernel_global = y - mid + j;
+						// clamping
+						if (x_kernel_global < 0){
+							x_kernel_global = 0;
+						}
+						if (x_kernel_global > w-1){
+							x_kernel_global = w - 1;
+						}
+						if (y_kernel_global < 0){
+							y_kernel_global = 0;
+						}
+						if (y_kernel_global > h - 1){
+							y_kernel_global = h - 1;
+						}
+						// Get indices
+						int idx_kernel_local = i + w_kernel*j;
+						int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*z;
+						// Multiply kernel to image
+						float ku = kernel[idx_kernel_local] * imgIn[idx_kernel_global];
+						// Sum up the results
+						imgOut[idx_3d] += ku;
+					}
+				}
 			}
 		}
 	}
@@ -169,8 +252,12 @@ int main(int argc, char **argv)
     // input image number of channels: nc
     // output image number of channels: mOut.channels(), as defined above (nc, 3, or 1)
 
+	// Get array memory
+	int nbytes_kernel = w_kernel * h_kernel * sizeof(float);
+	int nbytes = w * h * nc * sizeof(float);
+
     // allocate raw input image array
-    float *imgIn = new float[(size_t)w*h*nc];
+    float *imgIn = new float[(size_t)nbytes];
 
     // allocate raw output array (the computation result will be stored in this array, then later converted to mOut for displaying)
     float *imgOut = new float[(size_t)w*h*mOut.channels()];
@@ -206,66 +293,53 @@ int main(int argc, char **argv)
     // ### TODO: Main computation
     // ###
     // ###
+
+	// Kernel memory allocation
+	float *kernel = new float[nbytes_kernel]; 
+	float *kernel_cpy = new float[nbytes_kernel];
+	// Create kernel
+	get_kernel(kernel, kernel_cpy, w_kernel, h_kernel, pi, sigma);
+	// Processor type
+	string processor;
+
+	////////////////////////////////////////////////////////////////////// CPU ////////////////////////////////////////////////////////////////////// 
+	/*
+	// Convolution
+	convolution_cpu(imgIn, imgOut, kernel, w, h, nc, w_kernel, h_kernel);
+	// Type of processor
+	processor = "CPU";
+	*/
+	////////////////////////////////////////////////////////////////////// GPU ////////////////////////////////////////////////////////////////////// 
 	
-	// CUDA arrays
+	// Arrays
 	float *d_kernel;
 	float *d_imgIn;
 	float *d_imgOut;
-	// Kernel
-	float *kernel = new float[w_kernel*w_kernel]; 
-	float *kernel_cpy = new float[w_kernel*w_kernel];
-	int origin = w_kernel/2;
-	float total = 0.0f;
-	// Define 2D Gaussian kernel
-	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
-		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
-			int a = x_kernel - origin;
-			int b = y_kernel - origin;
-			int idx = x_kernel + w_kernel*y_kernel;
-			kernel[idx] = (1.0f / (2.0f*pi*sigma*sigma))*exp(-1*((a*a+b*b) / (2*sigma*sigma)));
-			total += kernel[idx];
-		}
-	}
-	// Normalise kernel
-	float max = 0.0;
-	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
-		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
-			int idx = x_kernel + w_kernel*y_kernel;
-			kernel[idx] /= total;
-			if (kernel[idx] > max){
-				max = kernel[idx];
-			}
-		}
-	}
-	// Copy of normalised kernel
-	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
-		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
-			int idx = x_kernel + w_kernel*y_kernel;
-			kernel_cpy[idx] = kernel[idx] / max;
-		}
-	}
-
-	// Get malloc sizes
-	int nbytes_kernel = w_kernel * h_kernel * sizeof(float);
-	int nbytes = w * h * nc * sizeof(float);
 	// CUDA
-    cudaMalloc(&d_kernel, nbytes_kernel);
-    cudaMalloc(&d_imgIn, nbytes);
-    cudaMalloc(&d_imgOut, nbytes);
-    cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);
+    cudaMalloc(&d_kernel, nbytes_kernel);	CUDA_CHECK;
+    cudaMalloc(&d_imgIn, nbytes); 			CUDA_CHECK;
+    cudaMalloc(&d_imgOut, nbytes); 			CUDA_CHECK;
+    cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);	CUDA_CHECK;
+    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    CUDA_CHECK;
     dim3 block = dim3(128, 1, 1); 
     dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1) / block.z);
 	// Convolution
-    convolution <<< grid, block >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel);            
-    cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost);
+    convolution_gpu <<< grid, block >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel);	CUDA_CHECK;
+	cudaDeviceSynchronize(); 																			CUDA_CHECK;
+    cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 										CUDA_CHECK;
  	// Free memory
-    cudaFree(d_imgIn);
-    cudaFree(d_imgOut);
-    cudaFree(d_kernel);
+    cudaFree(d_imgIn);  CUDA_CHECK;
+    cudaFree(d_imgOut); CUDA_CHECK;
+    cudaFree(d_kernel); CUDA_CHECK;
+	// Type of processor
+	processor = "GPU";
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
     timer.end();  float t = timer.get();  // elapsed time in seconds
     cout << "time: " << t*1000 << " ms" << endl;
+	cout << "Processor: " << processor << endl;
     // show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
     // show output image: first convert to interleaved opencv format from the layered raw array
@@ -278,7 +352,6 @@ int main(int argc, char **argv)
 
 #ifdef CAMERA
     // end of camera loop
-    }
 #else
     // wait for key inputs
     cv::waitKey(0);
@@ -288,11 +361,16 @@ int main(int argc, char **argv)
     cv::imwrite("image_input.png",mIn*255.f);  // "imwrite" assumes channel range [0,255]
     cv::imwrite("image_result.png",mOut*255.f);
 
-    // free allocated arrays
-    delete[] imgIn;
-    delete[] imgOut;
-	//delete[] kernel;
-	//delete[] kernel_cpy;
+	// free allocated arrays
+#ifdef CAMERA
+	delete[] imgIn;
+	delete[] imgOut;
+#else
+	delete[] imgIn;
+	delete[] imgOut;
+	delete[] kernel;
+	delete[] kernel_cpy;
+#endif
 
     // close all opencv windows
     cvDestroyAllWindows();
