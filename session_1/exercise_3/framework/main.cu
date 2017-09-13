@@ -186,7 +186,7 @@ int main(int argc, char **argv)
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-	timer.end();  float t = timer.get();  // elapsed time in seconds
+    timer.end();  float t = timer.get();  // elapsed time in seconds
     cout << "time: " << t*1000 << " ms" << endl;
 
     // show input image
