@@ -19,8 +19,8 @@
 using namespace std;
 
 const float pi = 3.141592653589793238462f;
-__constant__ float kernel_constant[41 * 41 * sizeof(float)]; // Assumes r = 20
 
+__constant__ float kernel_constant[41 * 41 * sizeof(float)]; // Assumes r_max = 20
 texture<float, 2, cudaReadModeElementType> texRef; // At file scope
 
 // uncomment to use the camera
@@ -33,13 +33,13 @@ __global__ void convolution_texture(float *d_imgIn, float *d_imgOut, float *d_ke
 	int y = threadIdx.y + blockDim.y*blockIdx.y;
 	// Kernel origin
 	int mid = (w_kernel-1)/2;
-	//
+	// Convolution
 	for (size_t c = 0; c < nc; c++){
 		size_t idx = x + (size_t)w * y + w * h * c;
 		if (x < w && y < h){
 			// Initialise output
 			d_imgOut[idx] = 0;
-			//
+			// Loop through kernel
 			for (size_t j = 0; j < h_kernel; j++){
 				for (size_t i = 0; i < w_kernel; i++){
 					// Global kernel thread coordinate 
@@ -49,7 +49,7 @@ __global__ void convolution_texture(float *d_imgIn, float *d_imgOut, float *d_ke
 					int idx_kernel_local = i + w_kernel*j;
 					//
 					float input = tex2D(texRef, x_kernel_global + 0.5f, y_kernel_global + 0.5f + h * c);
-					if(kernel_is_const){
+					if(kernel_is_const == true){
 						d_imgOut[idx] += kernel_constant[idx_kernel_local] * input;
 					} else{
 						d_imgOut[idx] += d_kernel[idx_kernel_local] * input;
@@ -73,13 +73,11 @@ __global__ void convolution_shared(float *d_imgIn, float *d_imgOut, float *d_ker
 	int h_shared = blockDim.y + 2 * r;
 	// Create array in shared memory
 	extern __shared__ float imgIn_shared[];	
-	// Number of data loading for each thread - somewhat equivalent to number of grids in shared memory
+	// Number of data loading for each thread - somewhat equivalent to number of blocks required to cover the whole shared memory
 	int num_load = (w_shared * h_shared + (blockDim.x * blockDim.y - 1)) / (blockDim.x * blockDim.y);
 	// Loop through channels
 	for (size_t c = 0; c < nc; c++){
-		// Get global thread index
-		size_t idx = x + (size_t)w * y + w * h * c;
-		// Get index of thread in share memory
+		// Fill in shared memory
 		for (size_t i = 0; i < num_load; i++){	
 			size_t idx_shared_local = x_block_local + (size_t)blockDim.x * y_block_local + i * blockDim.x * blockDim.y;
 			// Get coordinates on shared memory
@@ -108,23 +106,27 @@ __global__ void convolution_shared(float *d_imgIn, float *d_imgOut, float *d_ker
 				imgIn_shared[idx_shared_local] = d_imgIn[idx_shared_global];
 			}
 		}
-		// Synchronise threads before applying convolution (make sure the shared memory is filled)
-		__syncthreads();
 		// Convolution
+		size_t idx = x + (size_t)w * y + w * h * c;
 		if (x < w && y < h){
-			// Initialise output
-			d_imgOut[idx] = 0;
-			for (size_t j = 0; j < h_kernel; j++){
-				for (size_t i = 0; i < w_kernel; i++){
-					// Get coordinates of kernel in shared memory (note shared memory includes out of domain values)
-					int x_block_shared = x_block_local + i;
-					int y_block_shared = y_block_local + j;
-					int idx_kernel_local = i + w_kernel * j;
-					int idx_block_shared = x_block_shared + y_block_shared * w_shared;
-					if (kernel_is_const){
-						d_imgOut[idx] += kernel_constant[idx_kernel_local] * imgIn_shared[idx_block_shared];
-					} else{
-						d_imgOut[idx] += d_kernel[idx_kernel_local] * imgIn_shared[idx_block_shared];
+			// Synchronise threads before applying convolution (make sure the shared memory is filled)
+			__syncthreads();
+			if (x < w && y < h){
+				// Initialise output
+				d_imgOut[idx] = 0;
+				// Loop through kernel
+				for (size_t j = 0; j < h_kernel; j++){
+					for (size_t i = 0; i < w_kernel; i++){
+						// Get coordinates of kernel in shared memory (note shared memory includes out of domain values)
+						int x_block_shared = x_block_local + i;
+						int y_block_shared = y_block_local + j;
+						int idx_kernel_local = i + w_kernel * j;
+						int idx_block_shared = x_block_shared + y_block_shared * w_shared;
+						if (kernel_is_const == true){
+							d_imgOut[idx] += kernel_constant[idx_kernel_local] * imgIn_shared[idx_block_shared];
+						} else{
+							d_imgOut[idx] += d_kernel[idx_kernel_local] * imgIn_shared[idx_block_shared];
+						}
 					}
 				}
 			}
@@ -133,45 +135,49 @@ __global__ void convolution_shared(float *d_imgIn, float *d_imgOut, float *d_ker
 }
 	
 // Convolution on global memory
-__global__ void convolution_global(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel){
+__global__ void convolution_global(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel, bool kernel_is_const){
 	// Get coordinates
 	int x = threadIdx.x + blockDim.x*blockIdx.x;
 	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	int z = threadIdx.z + blockDim.z*blockIdx.z;
+	//int z = threadIdx.z + blockDim.z*blockIdx.z;
 	// Get indices
 	size_t idx = x + (size_t)w*y;
-	size_t idx_3d = idx + (size_t)w*h*z;
 	// Initialise d_imgOut
-	d_imgOut[idx_3d] = 0.0f;
 	// Set origin
 	int mid = (w_kernel-1)/2;
 	// Convolution - Note x_kernel is the global x coordinate of kernel in the problem domain
-	if (x < w && y < h && z < nc){
-		for (size_t j = 0; j < h_kernel; j++){
-			for (size_t i = 0; i < w_kernel; i++){
-				// Boundary condition
-				int x_kernel_global = x - mid + i;
-				int y_kernel_global = y - mid + j;
-				// clamping
-				if (x_kernel_global < 0){
-					x_kernel_global = 0;
+	for (size_t c = 0; c < nc; c++){
+		size_t idx_3d = idx + (size_t)w*h*c;
+		d_imgOut[idx_3d] = 0.0f;
+		if (x < w && y < h){
+			for (size_t j = 0; j < h_kernel; j++){
+				for (size_t i = 0; i < w_kernel; i++){
+					// Boundary condition
+					int x_kernel_global = x - mid + i;
+					int y_kernel_global = y - mid + j;
+					// clamping
+					if (x_kernel_global < 0){
+						x_kernel_global = 0;
+					}
+					if (x_kernel_global > w-1){
+						x_kernel_global = w - 1;
+					}
+					if (y_kernel_global < 0){
+						y_kernel_global = 0;
+					}
+					if (y_kernel_global > h - 1){
+						y_kernel_global = h - 1;
+					}
+					// Get indices
+					int idx_kernel_local = i + w_kernel*j;
+					int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*c;
+					// Multiply and sum
+					if (kernel_is_const == true){
+						d_imgOut[idx_3d] += kernel_constant[idx_kernel_local] * d_imgIn[idx_kernel_global];
+					} else{
+						d_imgOut[idx_3d] += d_kernel[idx_kernel_local] * d_imgIn[idx_kernel_global];
+					}
 				}
-				if (x_kernel_global > w-1){
-					x_kernel_global = w - 1;
-				}
-				if (y_kernel_global < 0){
-					y_kernel_global = 0;
-				}
-				if (y_kernel_global > h - 1){
-					y_kernel_global = h - 1;
-				}
-				// Get indices
-				int idx_kernel_local = i + w_kernel*j;
-				int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*z;
-				// Multiply kernel to image
-				float ku = d_kernel[idx_kernel_local] * d_imgIn[idx_kernel_global];
-				// Sum up the results
-				d_imgOut[idx_3d] += ku;
 			}
 		}
 	}
@@ -234,7 +240,7 @@ int main(int argc, char **argv)
     getParam("gray", gray, argc, argv);
     cout << "gray: " << gray << endl;
 	// Convolution kernel
-	float sigma = 10.0;
+	float sigma = 10.0f;
 	getParam("sigma", sigma, argc, argv);
 	cout << "sigma: " << sigma << endl;
     // ### Define your own parameters here as needed    
@@ -334,7 +340,6 @@ int main(int argc, char **argv)
     convert_mat_to_layered (imgIn, mIn);
 
 
-    Timer timer; timer.start();
     // ###
     // ###
     // ### TODO: Main computation
@@ -348,7 +353,14 @@ int main(int argc, char **argv)
 	// Processor type
 	string processor;
 
+	////////////////////////////////////////////////////////////////////// Block setting ///////////////////////////////////////////////////////////////////////
+
+	dim3 block = dim3(128, 1, 1); 
+    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1) / block.z);
+
 	////////////////////////////////////////////////////////////////////// Texture Memory ////////////////////////////////////////////////////////////////////// 
+
+/*
 
 	// Arrays
 	float *d_kernel;
@@ -361,18 +373,18 @@ int main(int argc, char **argv)
     cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);	CUDA_CHECK;
     cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    CUDA_CHECK;
 	cudaMemcpyToSymbol(kernel_constant, kernel, nbytes_kernel);				CUDA_CHECK;
-    dim3 block = dim3(128, 1, 1); 
-    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, 1);
-	// Boundary condition
+   	// Boundary condition
 	texRef.addressMode[0] = cudaAddressModeClamp;
 	texRef.addressMode[1] = cudaAddressModeClamp;
 	texRef.filterMode = cudaFilterModeLinear;
 	texRef.normalized = false;
 	// Lecture note stuff..
-	cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();	CUDA_CHECK;
-	cudaBindTexture2D(NULL, &texRef, d_imgIn, &desc, w, nc * h, w * sizeof(d_imgIn[0]));
+	cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();							CUDA_CHECK;
+	cudaBindTexture2D(NULL, &texRef, d_imgIn, &desc, w, nc * h, w * sizeof(d_imgIn[0]));	CUDA_CHECK;
 	// Convolution
+	Timer timer; timer.start();
 	convolution_texture <<<grid, block>>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel, r, kernel_is_const);
+	timer.end();  float t = timer.get();
 	// Lecture note stuff..
 	cudaUnbindTexture(texRef);
     cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 										CUDA_CHECK;
@@ -382,9 +394,15 @@ int main(int argc, char **argv)
     cudaFree(d_kernel); CUDA_CHECK;
 	// Type of processor
 	processor = "GPU - texture memory";
+	cout << processor << endl;
+	cout << "time: " << t*1000 << " ms" << endl;
+
+*/
 
 	////////////////////////////////////////////////////////////////////// Shared Memory ////////////////////////////////////////////////////////////////////// 
+
 /*
+
 	// Arrays
 	float *d_kernel;
 	float *d_imgIn;
@@ -396,11 +414,11 @@ int main(int argc, char **argv)
     cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);	CUDA_CHECK;
     cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    CUDA_CHECK;
 	cudaMemcpyToSymbol(kernel_constant, kernel, nbytes_kernel);				CUDA_CHECK;
-    dim3 block = dim3(128, 1, 1); 
-    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, 1);
 	size_t smBytes = (block.x + 2 * r) * (block.y + 2 * r) * sizeof(float);
-	// Convolution
+	// Convolution	
+	Timer timer; timer.start();
     convolution_shared <<< grid, block, smBytes >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel, r, kernel_is_const);	CUDA_CHECK;
+	timer.end();  float t = timer.get();
 	cudaDeviceSynchronize(); 																			CUDA_CHECK;
     cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 										CUDA_CHECK;
  	// Free memory
@@ -409,9 +427,16 @@ int main(int argc, char **argv)
     cudaFree(d_kernel); CUDA_CHECK;
 	// Type of processor
 	processor = "GPU - shared memory";
+	cout << processor << endl;
+	cout << "time: " << t*1000 << " ms" << endl;
+
 */
+
+
 	////////////////////////////////////////////////////////////////////// Global Memory ////////////////////////////////////////////////////////////////////// 
-/*	
+
+
+
 	// Arrays
 	float *d_kernel;
 	float *d_imgIn;
@@ -422,25 +447,26 @@ int main(int argc, char **argv)
     cudaMalloc(&d_imgOut, nbytes); 			CUDA_CHECK;
     cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);	CUDA_CHECK;
     cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    CUDA_CHECK;
-    dim3 block = dim3(128, 1, 1); 
-    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1) / block.z);
+	cudaMemcpyToSymbol(kernel_constant, kernel, nbytes_kernel);				CUDA_CHECK;
 	// Convolution
-    convolution_gpu <<< grid, block >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel);	CUDA_CHECK;
-	cudaDeviceSynchronize(); 																			CUDA_CHECK;
-    cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 										CUDA_CHECK;
+	Timer timer; timer.start();
+    convolution_global <<< grid, block >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel, kernel_is_const);	CUDA_CHECK;
+	timer.end();  float t = timer.get();
+	cudaDeviceSynchronize(); 																								CUDA_CHECK;
+    cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 															CUDA_CHECK;
  	// Free memory
     cudaFree(d_imgIn);  CUDA_CHECK;
     cudaFree(d_imgOut); CUDA_CHECK;
     cudaFree(d_kernel); CUDA_CHECK;
 	// Type of processor
 	processor = "GPU - global memory";
-*/
+	cout << processor << endl;
+	cout << "time: " << t*1000 << " ms" << endl;
+
+
+
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-    timer.end();  float t = timer.get();  // elapsed time in seconds
-    cout << "time: " << t*1000 << " ms" << endl;
-	cout << "Processor: " << processor << endl;
     // show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
     // show output image: first convert to interleaved opencv format from the layered raw array
