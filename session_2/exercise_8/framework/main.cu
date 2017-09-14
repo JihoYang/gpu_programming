@@ -22,7 +22,58 @@ const float pi = 3.141592653589793238462f;
 
 
 // uncomment to use the camera
-//#define CAMERA
+#define CAMERA
+
+// Compute eigenvalue of a 2 by 2 matrix
+__device__ void compute_eigenvalue(float *d_eigen_value, float d_t1_val, float d_t2_val, float d_t3_val){
+	// Define matrix	
+	float A[4] = {d_t1_val, d_t2_val, d_t2_val, d_t3_val};
+	// Define elements
+	float a = A[0];
+	float b = A[1];
+	float c = A[2];
+	float d = A[3];	
+	// Trace and determinant
+	float T = a + d;
+	float D = a*d - b*c;
+	// Compute eigenvalue
+	d_eigen_value[0] = T/2 + sqrtf(T*T/4-D);
+	d_eigen_value[1] = T/2 - sqrtf(T*T/4-D);
+	// Sort eigenvalue array
+	if (d_eigen_value[0] > d_eigen_value[1]){
+		float swap = d_eigen_value[0];
+		d_eigen_value[0] = d_eigen_value[1];
+		d_eigen_value[1] = swap;
+	}
+}
+
+// Feature Detection
+__global__ void feature_detection(float *d_imgOut, float *d_eigen_value, float *d_t1, float *d_t2, float *d_t3, int w, int h, float alpha, float beta){
+	// Get coordinates
+	int x = threadIdx.x + blockDim.x*blockIdx.x;
+	int y = threadIdx.y + blockDim.y*blockIdx.y;
+	// Get index
+	int idx = x + (size_t)w*y;
+	// Get eigenvalue
+	compute_eigenvalue(d_eigen_value, d_t1[idx], d_t2[idx], d_t3[idx]);
+	// Mark corner as red
+	if (d_eigen_value[0] > alpha){
+		d_imgOut[idx] = 1;
+		d_imgOut[idx + (size_t)w*h] = 0;
+		d_imgOut[idx + (size_t)w*h*2] = 0;
+	} 
+	// Mark edge as yellow
+	else if (d_eigen_value[1] >= alpha && alpha >= beta && beta >= d_eigen_value[0]){
+		d_imgOut[idx] = 1;
+		d_imgOut[idx + (size_t)w*h] = 1;
+		d_imgOut[idx + (size_t)w*h*2] = 0;
+	} else {
+		d_imgOut[idx] = d_imgOut[idx]*0.5;
+		d_imgOut[idx + (size_t)w*h] = d_imgOut[idx + (size_t)w*h]*0.5;
+		d_imgOut[idx + (size_t)w*h*2] = d_imgOut[idx + (size_t)w*h*2]*0.5;
+	}
+}
+
 
 // Compute M
 __global__ void compute_M(float *d_m1, float *d_m2, float *d_m3, float *d_gradx, float *d_grady, int w, int h, int nc){
@@ -199,7 +250,7 @@ int main(int argc, char **argv)
     getParam("gray", gray, argc, argv);
     cout << "gray: " << gray << endl;
 	// Convolution kernel
-	float sigma = 1.0f;
+	float sigma = 0.5f;
 	getParam("sigma", sigma, argc, argv);
 	cout << "sigma: " << sigma << endl;
     // ### Define your own parameters here as needed    
@@ -327,16 +378,15 @@ int main(int argc, char **argv)
 	float *t1 = new float[w*h];
 	float *t2 = new float[w*h];
 	float *t3 = new float[w*h];
-	
+
+	float alpha = 0.0015f;
+	float beta  = 0.001f;
 
 
 	////////////////////////////////////////////////////////////////////// Block setting ///////////////////////////////////////////////////////////////////////
 
 	dim3 block = dim3(128, 1, 1); 
     dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1) / block.z);
-
-	// m images
-
 
 
 	////////////////////////////////////////////////////////////////////// Global Memory ////////////////////////////////////////////////////////////////////// 
@@ -356,18 +406,21 @@ int main(int argc, char **argv)
 	float *d_t1;
 	float *d_t2;
 	float *d_t3;
-	// CUDA
-    cudaMalloc(&d_kernel, nbytes_kernel);	CUDA_CHECK;
-    cudaMalloc(&d_imgIn, nbytes); 			CUDA_CHECK;
-    cudaMalloc(&d_imgOut, nbytes); 			CUDA_CHECK;
-	cudaMalloc(&d_gradx, nbytes);			CUDA_CHECK;
-	cudaMalloc(&d_grady, nbytes);			CUDA_CHECK;
-	cudaMalloc(&d_m1, w*h*sizeof(float));	CUDA_CHECK;
-	cudaMalloc(&d_m2, w*h*sizeof(float));	CUDA_CHECK;
-	cudaMalloc(&d_m3, w*h*sizeof(float));	CUDA_CHECK;
-	cudaMalloc(&d_t1, w*h*sizeof(float));	CUDA_CHECK;
-	cudaMalloc(&d_t2, w*h*sizeof(float));	CUDA_CHECK;
-	cudaMalloc(&d_t3, w*h*sizeof(float));	CUDA_CHECK;
+	float *d_eigen_value;
+	// CUDA malloc
+    cudaMalloc(&d_kernel, nbytes_kernel);			CUDA_CHECK;
+    cudaMalloc(&d_imgIn, nbytes); 					CUDA_CHECK;
+    cudaMalloc(&d_imgOut, nbytes); 					CUDA_CHECK;
+	cudaMalloc(&d_gradx, nbytes);					CUDA_CHECK;
+	cudaMalloc(&d_grady, nbytes);					CUDA_CHECK;
+	cudaMalloc(&d_m1, w*h*sizeof(float));			CUDA_CHECK;
+	cudaMalloc(&d_m2, w*h*sizeof(float));			CUDA_CHECK;
+	cudaMalloc(&d_m3, w*h*sizeof(float));			CUDA_CHECK;
+	cudaMalloc(&d_t1, w*h*sizeof(float));			CUDA_CHECK;
+	cudaMalloc(&d_t2, w*h*sizeof(float));			CUDA_CHECK;
+	cudaMalloc(&d_t3, w*h*sizeof(float));			CUDA_CHECK;
+	cudaMalloc(&d_eigen_value, 2*sizeof(float));	CUDA_CHECK;
+	// CUDA copy
     cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);	CUDA_CHECK;
     cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    CUDA_CHECK;
 	// Convolution on original image
@@ -382,6 +435,10 @@ int main(int argc, char **argv)
 	convolution_global <<< grid, block >>> (d_m2, d_t2, d_kernel, w, h, 1, w_kernel, h_kernel, kernel_is_const);			CUDA_CHECK;
 	// Convolution on m3
 	convolution_global <<< grid, block >>> (d_m3, d_t3, d_kernel, w, h, 1, w_kernel, h_kernel, kernel_is_const);			CUDA_CHECK;
+	// Feature detection
+	feature_detection <<< grid, block >>> (d_imgOut, d_eigen_value, d_t1, d_t2, d_t3, w, h, alpha, beta);					CUDA_CHECK;
+	
+
 	// Copy the results to host
     cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 		CUDA_CHECK;
 	cudaMemcpy(gradx, d_gradx, nbytes, cudaMemcpyDeviceToHost);			CUDA_CHECK;
@@ -394,17 +451,18 @@ int main(int argc, char **argv)
 	cudaMemcpy(t3, d_t3, w*h*sizeof(float), cudaMemcpyDeviceToHost); 	CUDA_CHECK;	
 
  	// Free memory
-    cudaFree(d_imgIn);  CUDA_CHECK;
-    cudaFree(d_imgOut); CUDA_CHECK;
-    cudaFree(d_kernel); CUDA_CHECK;
-	cudaFree(d_gradx);  CUDA_CHECK;
-	cudaFree(d_grady);  CUDA_CHECK;
-	cudaFree(d_m1);		CUDA_CHECK;
-	cudaFree(d_m2);		CUDA_CHECK;
-	cudaFree(d_m3);		CUDA_CHECK;
-	cudaFree(d_t1);		CUDA_CHECK;
-	cudaFree(d_t2);		CUDA_CHECK;
-	cudaFree(d_t3);		CUDA_CHECK;
+    cudaFree(d_imgIn);  		CUDA_CHECK;
+    cudaFree(d_imgOut); 		CUDA_CHECK;
+    cudaFree(d_kernel); 		CUDA_CHECK;
+	cudaFree(d_gradx);  		CUDA_CHECK;
+	cudaFree(d_grady);  		CUDA_CHECK;
+	cudaFree(d_m1);				CUDA_CHECK;
+	cudaFree(d_m2);				CUDA_CHECK;
+	cudaFree(d_m3);				CUDA_CHECK;
+	cudaFree(d_t1);				CUDA_CHECK;
+	cudaFree(d_t2);				CUDA_CHECK;
+	cudaFree(d_t3);				CUDA_CHECK;
+	cudaFree(d_eigen_value);	CUDA_CHECK;
 
 
 	// Type of processor
@@ -436,6 +494,7 @@ int main(int argc, char **argv)
 	convert_layered_to_mat(mT2, t2);
 	convert_layered_to_mat(mT3, t3);
 
+	/*
 	showImage("grad_x", mgradx, 100+w+50, 150);
 	showImage("grad_y", mgrady, 100+w+60, 150);
 	showImage("m1", 10.f*mM1, 50, 200);
@@ -444,10 +503,12 @@ int main(int argc, char **argv)
 	showImage("t1", 10.f*mT1, 50, 250);
 	showImage("t2", 10.f*mT2, 50 + w, 250);
 	showImage("t3", 10.f*mT3, 50 + 2 * w, 250);
+	*/
 
 
 #ifdef CAMERA
     // end of camera loop
+	}
 #else
     // wait for key inputs
     cv::waitKey(0);

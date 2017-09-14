@@ -228,7 +228,7 @@ SET(CUDA_NVCC_DEPEND
  "/usr/local/cuda-8.0/include/vector_functions.h"
  "/usr/local/cuda-8.0/include/vector_functions.hpp"
  "/usr/local/cuda-8.0/include/vector_types.h"
- "/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/helper.h"
- "/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/main.cu"
+ "/usr/prakt/s151/gpu_programming/session_2/exercise_8/framework/helper.h"
+ "/usr/prakt/s151/gpu_programming/session_2/exercise_8/framework/main.cu"
 )
 
