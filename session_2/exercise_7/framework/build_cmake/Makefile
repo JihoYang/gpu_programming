@@ -48,10 +48,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework
+CMAKE_SOURCE_DIR = /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake
+CMAKE_BINARY_DIR = /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -80,9 +80,9 @@ edit_cache/fast: edit_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles 0
 .PHONY : all
 
 # The main clean target

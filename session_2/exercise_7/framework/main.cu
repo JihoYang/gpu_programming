@@ -7,7 +7,7 @@
 // ### Summer Semester 2017, September 11 - October 9
 // ###
 
-// Exercise 6
+// Exercise 7
 
 // Written by: Jiho Yang (M.Sc student in Computational Science & Engineering)
 // Matriculation number: 03675799
@@ -19,159 +19,124 @@
 using namespace std;
 
 const float pi = 3.141592653589793238462f;
-__constant__ float kernel_constant[41 * 41 * sizeof(float)]; // Assumes r = 20
 
-texture<float, 2, cudaReadModeElementType> texRef; // At file scope
 
 // uncomment to use the camera
 //#define CAMERA
 
-// Convolution on texture memory
-__global__ void convolution_texture(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel, int r, bool kernel_is_const){
+// Compute M
+__global__ void compute_M(float *d_m1, float *d_m2, float *d_m3, float *d_gradx, float *d_grady, int w, int h, int nc){
 	// Get coordinates
 	int x = threadIdx.x + blockDim.x*blockIdx.x;
 	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	// Kernel origin
-	int mid = (w_kernel-1)/2;
-	//
-	for (size_t c = 0; c < nc; c++){
-		size_t idx = x + (size_t)w * y + w * h * c;
-		if (x < w && y < h){
-			// Initialise output
-			d_imgOut[idx] = 0;
-			//
-			for (size_t j = 0; j < h_kernel; j++){
-				for (size_t i = 0; i < w_kernel; i++){
-					// Global kernel thread coordinate 
-					int x_kernel_global = x - mid + i;
-					int y_kernel_global = y - mid + j;
-					// Kernel local index
-					int idx_kernel_local = i + w_kernel*j;
-					//
-					float input = tex2D(texRef, x_kernel_global + 0.5f, y_kernel_global + 0.5f + h * c);
-					if(kernel_is_const){
-						d_imgOut[idx] += kernel_constant[idx_kernel_local] * input;
-					} else{
-						d_imgOut[idx] += d_kernel[idx_kernel_local] * input;
-					}
-				}
-			}
-		}
-	__syncthreads();
+	// Get index in matrices m
+	size_t idx_2d = x + (size_t)w*y;
+	// Initialise sums
+	float sum1 = 0;	
+	float sum2 = 0;
+	float sum3 = 0;
+	// Loop through channels
+	for (size_t c = 0 ; c < nc; c++){
+		// Get index
+		size_t idx = x + (size_t)w*y + (size_t)w*h*c;	
+		sum1 += d_gradx[idx] * d_gradx[idx];
+		sum2 += d_gradx[idx] * d_grady[idx];
+		sum3 += d_grady[idx] * d_grady[idx];
 	}
+	// Fill matrices
+	d_m1[idx_2d] = sum1;
+	d_m2[idx_2d] = sum2;
+	d_m3[idx_2d] = sum3;
 }
 
-// Convolution on shared memory
-__global__ void convolution_shared(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel, int r, bool kernel_is_const){
-	// Get coordinates
-	int x = threadIdx.x + blockDim.x*blockIdx.x;
-	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	int x_block_local = threadIdx.x;
-	int y_block_local = threadIdx.y;
-	// Set up shared memory dimensions
-	int w_shared = blockDim.x + 2 * r;
-	int h_shared = blockDim.y + 2 * r;
-	// Create array in shared memory
-	extern __shared__ float imgIn_shared[];	
-	// Number of data loading for each thread - somewhat equivalent to number of grids in shared memory
-	int num_load = (w_shared * h_shared + (blockDim.x * blockDim.y - 1)) / (blockDim.x * blockDim.y);
-	// Loop through channels
-	for (size_t c = 0; c < nc; c++){
-		// Get global thread index
-		size_t idx = x + (size_t)w * y + w * h * c;
-		// Get index of thread in share memory
-		for (size_t i = 0; i < num_load; i++){	
-			size_t idx_shared_local = x_block_local + (size_t)blockDim.x * y_block_local + i * blockDim.x * blockDim.y;
-			// Get coordinates on shared memory
-			int x_shared_local = idx_shared_local % w_shared;
-			int y_shared_local = idx_shared_local / w_shared;
-			// Get corresponding coordinates on global problem domain 
-			int x_shared_global = x_shared_local + blockDim.x * blockIdx.x - r;
-			int y_shared_global = y_shared_local + blockDim.y * blockIdx.y - r;
-			// Clamping
-			if (x_shared_global < 0){
-				x_shared_global = 0;
-			}
-			if (x_shared_global > w - 1){
-				x_shared_global = w - 1;
-			}
-			if (y_shared_global < 0){
-				y_shared_global = 0;
-			}
-			if (y_shared_global > h - 1){
-				y_shared_global = h - 1;
-			}
-			// Get global index of the local shared memory thread
-			size_t idx_shared_global = x_shared_global + (size_t)w * y_shared_global + w * h * c;
-			// 
-			if (idx_shared_local < w_shared * h_shared){
-				imgIn_shared[idx_shared_local] = d_imgIn[idx_shared_global];
-			}
-		}
-		// Synchronise threads before applying convolution (make sure the shared memory is filled)
-		__syncthreads();
-		// Convolution
-		if (x < w && y < h){
-			// Initialise output
-			d_imgOut[idx] = 0;
-			for (size_t j = 0; j < h_kernel; j++){
-				for (size_t i = 0; i < w_kernel; i++){
-					// Get coordinates of kernel in shared memory (note shared memory includes out of domain values)
-					int x_block_shared = x_block_local + i;
-					int y_block_shared = y_block_local + j;
-					int idx_kernel_local = i + w_kernel * j;
-					int idx_block_shared = x_block_shared + y_block_shared * w_shared;
-					if (kernel_is_const){
-						d_imgOut[idx] += kernel_constant[idx_kernel_local] * imgIn_shared[idx_block_shared];
-					} else{
-						d_imgOut[idx] += d_kernel[idx_kernel_local] * imgIn_shared[idx_block_shared];
-					}
-				}
-			}
-		}
-	}
-}
-	
-// Convolution on global memory
-__global__ void convolution_global(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel){
+// Rotationally robust gradient
+__global__ void rotational_gradient(float *d_imgIn, float *d_gradx, float *d_grady, int w, int h, int nc){
 	// Get coordinates
 	int x = threadIdx.x + blockDim.x*blockIdx.x;
 	int y = threadIdx.y + blockDim.y*blockIdx.y;
 	int z = threadIdx.z + blockDim.z*blockIdx.z;
 	// Get indices
+	size_t idx = x + (size_t)w*y + (size_t)w*h*z;
+	// Compute gradient
+	if (x < w && y < h && z < nc){
+		// Get neighbouring indices
+		int x_high = x + 1;
+		int y_high = y + 1;
+		int x_low  = x - 1;
+		int y_low  = y - 1;
+		// Clamping
+		if (x_high > w - 1){
+			x_high = w - 1;
+		}
+		if (y_high > h - 1){
+			y_high = h - 1;
+		}
+		if (x_low < 0){
+			x_low = 0;	
+		}
+		if (y_low < 0){
+			y_low = 0;
+		}
+		// Get indices of neighbouring indices
+		size_t idx_x_high_y_high = x_high + (size_t)w*y_high + (size_t)w*h*z;
+		size_t idx_x_high_y_low  = x_high + (size_t)w*y_low  + (size_t)w*h*z;
+		size_t idx_x_low_y_high  = x_low  + (size_t)w*y_high + (size_t)w*h*z;
+		size_t idx_x_low_y_low   = x_low  + (size_t)w*y_low  + (size_t)w*h*z;
+		size_t idx_x_high_y_mid  = x_high + (size_t)w*y      + (size_t)w*h*z;
+		size_t idx_x_low_y_mid   = x_low  + (size_t)w*y      + (size_t)w*h*z;
+		size_t idx_x_mid_y_high  = x      + (size_t)w*y_high + (size_t)w*h*z;
+		size_t idx_x_mid_y_low   = x      + (size_t)w*y_low  + (size_t)w*h*z;
+		// Compute gradient	
+		d_gradx[idx] = (3*d_imgIn[idx_x_high_y_high] + 10*d_imgIn[idx_x_high_y_mid] 
+			  		  + 3*d_imgIn[idx_x_high_y_low]  - 3*d_imgIn[idx_x_low_y_high]  
+					  - 10*d_imgIn[idx_x_low_y_mid]  - 3*d_imgIn[idx_x_low_y_low])/32;
+
+		d_grady[idx] = (3*d_imgIn[idx_x_high_y_high] + 10*d_imgIn[idx_x_mid_y_high] 
+					  + 3*d_imgIn[idx_x_low_y_high]  - 3*d_imgIn[idx_x_high_y_low]  
+					  - 10*d_imgIn[idx_x_mid_y_low]  - 3*d_imgIn[idx_x_low_y_low])/32;
+	}
+}
+	
+// Convolution on global memory
+__global__ void convolution_global(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel, bool kernel_is_const){
+	// Get coordinates
+	int x = threadIdx.x + blockDim.x*blockIdx.x;
+	int y = threadIdx.y + blockDim.y*blockIdx.y;
+	//int z = threadIdx.z + blockDim.z*blockIdx.z;
+	// Get indices
 	size_t idx = x + (size_t)w*y;
-	size_t idx_3d = idx + (size_t)w*h*z;
 	// Initialise d_imgOut
-	d_imgOut[idx_3d] = 0.0f;
 	// Set origin
 	int mid = (w_kernel-1)/2;
 	// Convolution - Note x_kernel is the global x coordinate of kernel in the problem domain
-	if (x < w && y < h && z < nc){
-		for (size_t j = 0; j < h_kernel; j++){
-			for (size_t i = 0; i < w_kernel; i++){
-				// Boundary condition
-				int x_kernel_global = x - mid + i;
-				int y_kernel_global = y - mid + j;
-				// clamping
-				if (x_kernel_global < 0){
-					x_kernel_global = 0;
+	for (size_t c = 0; c < nc; c++){
+		size_t idx_3d = idx + (size_t)w*h*c;
+		d_imgOut[idx_3d] = 0.0f;
+		if (x < w && y < h){
+			for (size_t j = 0; j < h_kernel; j++){
+				for (size_t i = 0; i < w_kernel; i++){
+					// Boundary condition
+					int x_kernel_global = x - mid + i;
+					int y_kernel_global = y - mid + j;
+					// clamping
+					if (x_kernel_global < 0){
+						x_kernel_global = 0;
+					}
+					if (x_kernel_global > w-1){
+						x_kernel_global = w - 1;
+					}
+					if (y_kernel_global < 0){
+						y_kernel_global = 0;
+					}
+					if (y_kernel_global > h - 1){
+						y_kernel_global = h - 1;
+					}
+					// Get indices
+					int idx_kernel_local = i + w_kernel*j;
+					int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*c;
+					// Multiply and sum
+					d_imgOut[idx_3d] += d_kernel[idx_kernel_local] * d_imgIn[idx_kernel_global];
 				}
-				if (x_kernel_global > w-1){
-					x_kernel_global = w - 1;
-				}
-				if (y_kernel_global < 0){
-					y_kernel_global = 0;
-				}
-				if (y_kernel_global > h - 1){
-					y_kernel_global = h - 1;
-				}
-				// Get indices
-				int idx_kernel_local = i + w_kernel*j;
-				int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*z;
-				// Multiply kernel to image
-				float ku = d_kernel[idx_kernel_local] * d_imgIn[idx_kernel_global];
-				// Sum up the results
-				d_imgOut[idx_3d] += ku;
 			}
 		}
 	}
@@ -234,11 +199,11 @@ int main(int argc, char **argv)
     getParam("gray", gray, argc, argv);
     cout << "gray: " << gray << endl;
 	// Convolution kernel
-	float sigma = 10.0;
+	float sigma = 1.0f;
 	getParam("sigma", sigma, argc, argv);
 	cout << "sigma: " << sigma << endl;
     // ### Define your own parameters here as needed    
-	bool kernel_is_const = false;
+	bool kernel_is_const = true;
 	getParam("kernel_is_const", kernel_is_const, argc, argv);
 	cout << "Constant kernel memory : " << kernel_is_const << endl;
 
@@ -293,7 +258,14 @@ int main(int argc, char **argv)
     //cv::Mat mOut(h,w,CV_32FC3);    // mOut will be a color image, 3 layers
     //cv::Mat mOut(h,w,CV_32FC1);    // mOut will be a grayscale image, 1 layer
     // ### Define your own output images here as needed
-
+	cv:: Mat mgradx(h, w, mIn.type());
+	cv:: Mat mgrady(h, w, mIn.type());
+	cv:: Mat mM1(h, w, CV_32FC1);
+	cv:: Mat mM2(h, w, CV_32FC1);
+	cv:: Mat mM3(h, w, CV_32FC1);
+	cv:: Mat mT1(h, w, CV_32FC1);
+	cv:: Mat mT2(h, w, CV_32FC1);
+	cv:: Mat mT3(h, w, CV_32FC1);
 
 
 
@@ -334,7 +306,6 @@ int main(int argc, char **argv)
     convert_mat_to_layered (imgIn, mIn);
 
 
-    Timer timer; timer.start();
     // ###
     // ###
     // ### TODO: Main computation
@@ -348,106 +319,132 @@ int main(int argc, char **argv)
 	// Processor type
 	string processor;
 
-	////////////////////////////////////////////////////////////////////// Texture Memory ////////////////////////////////////////////////////////////////////// 
+	float *gradx = new float[nbytes];
+	float *grady = new float[nbytes];
+	float *m1 = new float[w*h];
+	float *m2 = new float[w*h];
+	float *m3 = new float[w*h];
+	float *t1 = new float[w*h];
+	float *t2 = new float[w*h];
+	float *t3 = new float[w*h];
+	
 
-	// Arrays
-	float *d_kernel;
-	float *d_imgIn;
-	float *d_imgOut;
-	// CUDA
-    cudaMalloc(&d_kernel, nbytes_kernel);	CUDA_CHECK;
-    cudaMalloc(&d_imgIn, nbytes); 			CUDA_CHECK;
-    cudaMalloc(&d_imgOut, nbytes); 			CUDA_CHECK;
-    cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);	CUDA_CHECK;
-    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    CUDA_CHECK;
-	cudaMemcpyToSymbol(kernel_constant, kernel, nbytes_kernel);				CUDA_CHECK;
-    dim3 block = dim3(128, 1, 1); 
-    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, 1);
-	// Boundary condition
-	texRef.addressMode[0] = cudaAddressModeClamp;
-	texRef.addressMode[1] = cudaAddressModeClamp;
-	texRef.filterMode = cudaFilterModeLinear;
-	texRef.normalized = false;
-	// Lecture note stuff..
-	cudaChannelFormatDesc desc = cudaCreateChannelDesc<float>();	CUDA_CHECK;
-	cudaBindTexture2D(NULL, &texRef, d_imgIn, &desc, w, nc * h, w * sizeof(d_imgIn[0]));
-	// Convolution
-	convolution_texture <<<grid, block>>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel, r, kernel_is_const);
-	// Lecture note stuff..
-	cudaUnbindTexture(texRef);
-    cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 										CUDA_CHECK;
- 	// Free memory
-    cudaFree(d_imgIn);  CUDA_CHECK;
-    cudaFree(d_imgOut); CUDA_CHECK;
-    cudaFree(d_kernel); CUDA_CHECK;
-	// Type of processor
-	processor = "GPU - texture memory";
 
-	////////////////////////////////////////////////////////////////////// Shared Memory ////////////////////////////////////////////////////////////////////// 
-/*
-	// Arrays
-	float *d_kernel;
-	float *d_imgIn;
-	float *d_imgOut;
-	// CUDA
-    cudaMalloc(&d_kernel, nbytes_kernel);	CUDA_CHECK;
-    cudaMalloc(&d_imgIn, nbytes); 			CUDA_CHECK;
-    cudaMalloc(&d_imgOut, nbytes); 			CUDA_CHECK;
-    cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);	CUDA_CHECK;
-    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    CUDA_CHECK;
-	cudaMemcpyToSymbol(kernel_constant, kernel, nbytes_kernel);				CUDA_CHECK;
-    dim3 block = dim3(128, 1, 1); 
-    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, 1);
-	size_t smBytes = (block.x + 2 * r) * (block.y + 2 * r) * sizeof(float);
-	// Convolution
-    convolution_shared <<< grid, block, smBytes >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel, r, kernel_is_const);	CUDA_CHECK;
-	cudaDeviceSynchronize(); 																			CUDA_CHECK;
-    cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 										CUDA_CHECK;
- 	// Free memory
-    cudaFree(d_imgIn);  CUDA_CHECK;
-    cudaFree(d_imgOut); CUDA_CHECK;
-    cudaFree(d_kernel); CUDA_CHECK;
-	// Type of processor
-	processor = "GPU - shared memory";
-*/
-	////////////////////////////////////////////////////////////////////// Global Memory ////////////////////////////////////////////////////////////////////// 
-/*	
-	// Arrays
-	float *d_kernel;
-	float *d_imgIn;
-	float *d_imgOut;
-	// CUDA
-    cudaMalloc(&d_kernel, nbytes_kernel);	CUDA_CHECK;
-    cudaMalloc(&d_imgIn, nbytes); 			CUDA_CHECK;
-    cudaMalloc(&d_imgOut, nbytes); 			CUDA_CHECK;
-    cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);	CUDA_CHECK;
-    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    CUDA_CHECK;
-    dim3 block = dim3(128, 1, 1); 
+	////////////////////////////////////////////////////////////////////// Block setting ///////////////////////////////////////////////////////////////////////
+
+	dim3 block = dim3(128, 1, 1); 
     dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1) / block.z);
-	// Convolution
-    convolution_gpu <<< grid, block >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel);	CUDA_CHECK;
-	cudaDeviceSynchronize(); 																			CUDA_CHECK;
-    cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 										CUDA_CHECK;
+
+	// m images
+
+
+
+	////////////////////////////////////////////////////////////////////// Global Memory ////////////////////////////////////////////////////////////////////// 
+
+
+	Timer timer; timer.start();
+
+	// Arrays
+	float *d_kernel;
+	float *d_imgIn;
+	float *d_imgOut;
+	float *d_gradx;
+	float *d_grady;
+	float *d_m1;
+	float *d_m2;
+	float *d_m3;
+	float *d_t1;
+	float *d_t2;
+	float *d_t3;
+	// CUDA
+    cudaMalloc(&d_kernel, nbytes_kernel);	CUDA_CHECK;
+    cudaMalloc(&d_imgIn, nbytes); 			CUDA_CHECK;
+    cudaMalloc(&d_imgOut, nbytes); 			CUDA_CHECK;
+	cudaMalloc(&d_gradx, nbytes);			CUDA_CHECK;
+	cudaMalloc(&d_grady, nbytes);			CUDA_CHECK;
+	cudaMalloc(&d_m1, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_m2, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_m3, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_t1, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_t2, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_t3, w*h*sizeof(float));	CUDA_CHECK;
+    cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);	CUDA_CHECK;
+    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    CUDA_CHECK;
+	// Convolution on original image
+    convolution_global <<< grid, block >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel, kernel_is_const);	CUDA_CHECK;
+	// Compute gradient of the convoluted image
+	rotational_gradient <<< grid, block >>> (d_imgIn, d_gradx, d_grady, w, h, nc);											CUDA_CHECK;
+	// Compute m1, m2, and m3
+	compute_M <<< grid, block >>> (d_m1, d_m2, d_m3, d_gradx, d_grady, w, h, nc);											CUDA_CHECK;
+	// Convolution on m1
+	convolution_global <<< grid, block >>> (d_m1, d_t1, d_kernel, w, h, 1, w_kernel, h_kernel, kernel_is_const);			CUDA_CHECK;
+	// Convolution on m2
+	convolution_global <<< grid, block >>> (d_m2, d_t2, d_kernel, w, h, 1, w_kernel, h_kernel, kernel_is_const);			CUDA_CHECK;
+	// Convolution on m3
+	convolution_global <<< grid, block >>> (d_m3, d_t3, d_kernel, w, h, 1, w_kernel, h_kernel, kernel_is_const);			CUDA_CHECK;
+	// Copy the results to host
+    cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 		CUDA_CHECK;
+	cudaMemcpy(gradx, d_gradx, nbytes, cudaMemcpyDeviceToHost);			CUDA_CHECK;
+	cudaMemcpy(grady, d_grady, nbytes, cudaMemcpyDeviceToHost);			CUDA_CHECK;
+	cudaMemcpy(m1, d_m1, w*h*sizeof(float), cudaMemcpyDeviceToHost);	CUDA_CHECK;		
+	cudaMemcpy(m2, d_m2, w*h*sizeof(float), cudaMemcpyDeviceToHost);	CUDA_CHECK;
+	cudaMemcpy(m3, d_m3, w*h*sizeof(float), cudaMemcpyDeviceToHost);	CUDA_CHECK;
+	cudaMemcpy(t1, d_t1, w*h*sizeof(float), cudaMemcpyDeviceToHost); 	CUDA_CHECK;	
+	cudaMemcpy(t2, d_t2, w*h*sizeof(float), cudaMemcpyDeviceToHost); 	CUDA_CHECK;	
+	cudaMemcpy(t3, d_t3, w*h*sizeof(float), cudaMemcpyDeviceToHost); 	CUDA_CHECK;	
+
  	// Free memory
     cudaFree(d_imgIn);  CUDA_CHECK;
     cudaFree(d_imgOut); CUDA_CHECK;
     cudaFree(d_kernel); CUDA_CHECK;
+	cudaFree(d_gradx);  CUDA_CHECK;
+	cudaFree(d_grady);  CUDA_CHECK;
+	cudaFree(d_m1);		CUDA_CHECK;
+	cudaFree(d_m2);		CUDA_CHECK;
+	cudaFree(d_m3);		CUDA_CHECK;
+	cudaFree(d_t1);		CUDA_CHECK;
+	cudaFree(d_t2);		CUDA_CHECK;
+	cudaFree(d_t3);		CUDA_CHECK;
+
+
 	// Type of processor
 	processor = "GPU - global memory";
-*/
+	cout << processor << endl;
+
+
+
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	timer.end();  float t = timer.get();
+	cout << "time: " << t*1000 << " ms" << endl;
 
-    timer.end();  float t = timer.get();  // elapsed time in seconds
-    cout << "time: " << t*1000 << " ms" << endl;
-	cout << "Processor: " << processor << endl;
+
     // show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
     // show output image: first convert to interleaved opencv format from the layered raw array
     convert_layered_to_mat(mOut, imgOut);
     showImage("Output", mOut, 100+w+40, 100);
 
+
     // ### Display your own output images here as needed
+	convert_layered_to_mat(mgradx, gradx);
+	convert_layered_to_mat(mgrady, grady);
+	convert_layered_to_mat(mM1, m1);
+	convert_layered_to_mat(mM2, m2);
+	convert_layered_to_mat(mM3, m3);
+	convert_layered_to_mat(mT1, t1);
+	convert_layered_to_mat(mT2, t2);
+	convert_layered_to_mat(mT3, t3);
+
+	showImage("grad_x", mgradx, 100+w+50, 150);
+	showImage("grad_y", mgrady, 100+w+60, 150);
+	showImage("m1", 10.f*mM1, 50, 200);
+	showImage("m2", 10.f*mM2, 50 + w, 200);
+	showImage("m3", 10.f*mM3, 50 + 2 * w, 200);
+	showImage("t1", 10.f*mT1, 50, 250);
+	showImage("t2", 10.f*mT2, 50 + w, 250);
+	showImage("t3", 10.f*mT3, 50 + 2 * w, 250);
+
 
 #ifdef CAMERA
     // end of camera loop
@@ -468,6 +465,14 @@ int main(int argc, char **argv)
 	delete[] imgIn;
 	delete[] imgOut;
 	delete[] kernel;
+	delete[] gradx;
+	delete[] grady;
+	delete[] m1;
+	delete[] m2;
+	delete[] m3;
+	delete[] t1;
+	delete[] t2;
+	delete[] t3;
 #endif
 
     // close all opencv windows

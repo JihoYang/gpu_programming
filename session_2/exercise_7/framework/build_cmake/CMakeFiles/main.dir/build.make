@@ -43,10 +43,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework
+CMAKE_SOURCE_DIR = /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake
+CMAKE_BINARY_DIR = /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake
 
 # Include any dependencies generated for this target.
 include CMakeFiles/main.dir/depend.make
@@ -235,62 +235,63 @@ CMakeFiles/main.dir/main_generated_main.cu.o: /usr/lib/gcc/x86_64-linux-gnu/5/in
 CMakeFiles/main.dir/main_generated_main.cu.o: /usr/lib/gcc/x86_64-linux-gnu/5/include/stddef.h
 CMakeFiles/main.dir/main_generated_main.cu.o: /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h
 CMakeFiles/main.dir/main_generated_main.cu.o: /usr/lib/gcc/x86_64-linux-gnu/5/include/xmmintrin.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/builtin_types.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/channel_descriptor.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/common_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/cuda_device_runtime_api.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/cuda_runtime.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/cuda_runtime_api.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/cuda_surface_types.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/cuda_texture_types.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/device_atomic_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/device_atomic_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/device_double_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/device_double_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/device_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/device_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/device_launch_parameters.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/device_types.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/driver_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/driver_types.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/host_config.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/host_defines.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/math_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/math_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/math_functions_dbl_ptx3.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/math_functions_dbl_ptx3.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_20_atomic_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_20_atomic_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_20_intrinsics.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_20_intrinsics.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_30_intrinsics.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_30_intrinsics.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_32_atomic_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_32_atomic_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_32_intrinsics.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_32_intrinsics.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_35_atomic_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/sm_35_intrinsics.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/surface_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/surface_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/surface_indirect_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/surface_indirect_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/surface_types.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/texture_fetch_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/texture_fetch_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/texture_indirect_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/texture_indirect_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/texture_types.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/vector_functions.h
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/vector_functions.hpp
-CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda/include/vector_types.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/builtin_types.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/channel_descriptor.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/common_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/cuda_device_runtime_api.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/cuda_runtime.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/cuda_runtime_api.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/cuda_surface_types.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/cuda_texture_types.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/device_atomic_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/device_atomic_functions.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/device_double_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/device_double_functions.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/device_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/device_functions.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/device_launch_parameters.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/device_types.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/driver_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/driver_types.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/host_config.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/host_defines.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/library_types.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/math_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/math_functions.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/math_functions_dbl_ptx3.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/math_functions_dbl_ptx3.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_20_atomic_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_20_atomic_functions.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_20_intrinsics.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_20_intrinsics.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_30_intrinsics.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_30_intrinsics.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_32_atomic_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_32_atomic_functions.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_32_intrinsics.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_32_intrinsics.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_35_atomic_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_35_intrinsics.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_60_atomic_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_60_atomic_functions.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_61_intrinsics.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/sm_61_intrinsics.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/surface_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/surface_indirect_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/surface_types.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/texture_fetch_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/texture_indirect_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/texture_types.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/vector_functions.h
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/vector_functions.hpp
+CMakeFiles/main.dir/main_generated_main.cu.o: /usr/local/cuda-8.0/include/vector_types.h
 CMakeFiles/main.dir/main_generated_main.cu.o: ../helper.h
 CMakeFiles/main.dir/main_generated_main.cu.o: ../main.cu
 CMakeFiles/main.dir/main_generated_main.cu.o: CMakeFiles/main.dir/main_generated_main.cu.o.cmake
 CMakeFiles/main.dir/main_generated_main.cu.o: ../main.cu
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building NVCC (Device) object CMakeFiles/main.dir/main_generated_main.cu.o"
-	cd /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -E make_directory /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir//.
-	cd /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -D verbose:BOOL=$(VERBOSE) -D build_configuration:STRING= -D generated_file:STRING=/usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir//./main_generated_main.cu.o -D generated_cubin_file:STRING=/usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir//./main_generated_main.cu.o.cubin.txt -P /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir//main_generated_main.cu.o.cmake
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building NVCC (Device) object CMakeFiles/main.dir/main_generated_main.cu.o"
+	cd /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -E make_directory /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir//.
+	cd /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -D verbose:BOOL=$(VERBOSE) -D build_configuration:STRING= -D generated_file:STRING=/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir//./main_generated_main.cu.o -D generated_cubin_file:STRING=/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir//./main_generated_main.cu.o.cubin.txt -P /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir//main_generated_main.cu.o.cmake
 
 CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/include/_G_config.h
 CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/include/alloca.h
@@ -465,75 +466,76 @@ CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/lib/gcc/x86_64-linux-gnu/5/
 CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/lib/gcc/x86_64-linux-gnu/5/include/stddef.h
 CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h
 CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/lib/gcc/x86_64-linux-gnu/5/include/xmmintrin.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/builtin_types.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/channel_descriptor.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/common_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/cuda_device_runtime_api.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/cuda_runtime.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/cuda_runtime_api.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/cuda_surface_types.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/cuda_texture_types.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/device_atomic_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/device_atomic_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/device_double_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/device_double_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/device_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/device_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/device_launch_parameters.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/device_types.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/driver_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/driver_types.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/host_config.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/host_defines.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/math_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/math_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/math_functions_dbl_ptx3.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/math_functions_dbl_ptx3.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_20_atomic_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_20_atomic_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_20_intrinsics.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_20_intrinsics.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_30_intrinsics.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_30_intrinsics.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_32_atomic_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_32_atomic_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_32_intrinsics.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_32_intrinsics.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_35_atomic_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/sm_35_intrinsics.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/surface_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/surface_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/surface_indirect_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/surface_indirect_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/surface_types.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/texture_fetch_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/texture_fetch_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/texture_indirect_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/texture_indirect_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/texture_types.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/vector_functions.h
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/vector_functions.hpp
-CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda/include/vector_types.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/builtin_types.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/channel_descriptor.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/common_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/cuda_device_runtime_api.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/cuda_runtime.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/cuda_runtime_api.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/cuda_surface_types.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/cuda_texture_types.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/device_atomic_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/device_atomic_functions.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/device_double_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/device_double_functions.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/device_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/device_functions.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/device_launch_parameters.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/device_types.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/driver_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/driver_types.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/host_config.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/host_defines.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/library_types.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/math_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/math_functions.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/math_functions_dbl_ptx3.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/math_functions_dbl_ptx3.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_20_atomic_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_20_atomic_functions.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_20_intrinsics.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_20_intrinsics.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_30_intrinsics.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_30_intrinsics.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_32_atomic_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_32_atomic_functions.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_32_intrinsics.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_32_intrinsics.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_35_atomic_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_35_intrinsics.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_60_atomic_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_60_atomic_functions.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_61_intrinsics.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/sm_61_intrinsics.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/surface_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/surface_indirect_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/surface_types.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/texture_fetch_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/texture_indirect_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/texture_types.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/vector_functions.h
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/vector_functions.hpp
+CMakeFiles/main.dir/main_generated_helper.cu.o: /usr/local/cuda-8.0/include/vector_types.h
 CMakeFiles/main.dir/main_generated_helper.cu.o: ../helper.cu
 CMakeFiles/main.dir/main_generated_helper.cu.o: ../helper.h
 CMakeFiles/main.dir/main_generated_helper.cu.o: CMakeFiles/main.dir/main_generated_helper.cu.o.cmake
 CMakeFiles/main.dir/main_generated_helper.cu.o: ../helper.cu
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building NVCC (Device) object CMakeFiles/main.dir/main_generated_helper.cu.o"
-	cd /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -E make_directory /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir//.
-	cd /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -D verbose:BOOL=$(VERBOSE) -D build_configuration:STRING= -D generated_file:STRING=/usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir//./main_generated_helper.cu.o -D generated_cubin_file:STRING=/usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir//./main_generated_helper.cu.o.cubin.txt -P /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir//main_generated_helper.cu.o.cmake
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building NVCC (Device) object CMakeFiles/main.dir/main_generated_helper.cu.o"
+	cd /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -E make_directory /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir//.
+	cd /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir && /usr/bin/cmake -D verbose:BOOL=$(VERBOSE) -D build_configuration:STRING= -D generated_file:STRING=/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir//./main_generated_helper.cu.o -D generated_cubin_file:STRING=/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir//./main_generated_helper.cu.o.cubin.txt -P /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir//main_generated_helper.cu.o.cmake
 
 # Object files for target main
 main_OBJECTS =
 
 # External object files for target main
 main_EXTERNAL_OBJECTS = \
-"/usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir/main_generated_main.cu.o" \
-"/usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir/main_generated_helper.cu.o"
+"/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir/main_generated_main.cu.o" \
+"/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir/main_generated_helper.cu.o"
 
 main: CMakeFiles/main.dir/main_generated_main.cu.o
 main: CMakeFiles/main.dir/main_generated_helper.cu.o
 main: CMakeFiles/main.dir/build.make
-main: /usr/local/cuda/lib64/libcudart_static.a
+main: /usr/local/cuda-8.0/lib64/libcudart_static.a
 main: /usr/lib/x86_64-linux-gnu/librt.so
 main: /usr/lib/x86_64-linux-gnu/libopencv_videostab.so.2.4.9
 main: /usr/lib/x86_64-linux-gnu/libopencv_ts.so.2.4.9
@@ -554,7 +556,7 @@ main: /usr/lib/x86_64-linux-gnu/libopencv_imgproc.so.2.4.9
 main: /usr/lib/x86_64-linux-gnu/libopencv_flann.so.2.4.9
 main: /usr/lib/x86_64-linux-gnu/libopencv_core.so.2.4.9
 main: CMakeFiles/main.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable main"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable main"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/main.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -572,6 +574,6 @@ CMakeFiles/main.dir/clean:
 
 CMakeFiles/main.dir/depend: CMakeFiles/main.dir/main_generated_main.cu.o
 CMakeFiles/main.dir/depend: CMakeFiles/main.dir/main_generated_helper.cu.o
-	cd /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake /usr/prakt/s151/gpu_programming/session_2/exercise_6/framework/build_cmake/CMakeFiles/main.dir/DependInfo.cmake --color=$(COLOR)
+	cd /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake /usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/main.dir/depend
 
