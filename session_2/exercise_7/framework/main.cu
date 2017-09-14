@@ -7,7 +7,7 @@
 // ### Summer Semester 2017, September 11 - October 9
 // ###
 
-// Exercise 7
+// Exercise 8
 
 // Written by: Jiho Yang (M.Sc student in Computational Science & Engineering)
 // Matriculation number: 03675799
