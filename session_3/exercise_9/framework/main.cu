@@ -7,7 +7,7 @@
 // ### Summer Semester 2017, September 11 - October 9
 // ###
 
-// Exercise 8
+// Exercise 9
 
 // Written by: Jiho Yang (M.Sc student in Computational Science & Engineering)
 // Matriculation number: 03675799
@@ -18,204 +18,57 @@
 #include <unistd.h>
 using namespace std;
 
-const float pi = 3.141592653589793238462f;
-
-
 // uncomment to use the camera
 //#define CAMERA
 
-// Compute eigenvalue of a 2 by 2 matrix
-__device__ void compute_eigenvalue(float *d_eigen_value, float d_t1_val, float d_t2_val, float d_t3_val){
-	// Define matrix	
-	float A[4] = {d_t1_val, d_t2_val, d_t2_val, d_t3_val};
-	// Define elements
-	float a = A[0];
-	float b = A[1];
-	float c = A[2];
-	float d = A[3];	
-	// Trace and determinant
-	float T = a + d;
-	float D = a*d - b*c;
-	// Compute eigenvalue
-	d_eigen_value[0] = T/2 + sqrtf(T*T/4-D);
-	d_eigen_value[1] = T/2 - sqrtf(T*T/4-D);
-	// Sort eigenvalue array
-	if (d_eigen_value[0] > d_eigen_value[1]){
-		float swap = d_eigen_value[0];
-		d_eigen_value[0] = d_eigen_value[1];
-		d_eigen_value[1] = swap;
-	}
-}
-
-// Feature Detection
-__global__ void feature_detection(float *d_imgOut, float *d_eigen_value, float *d_t1, float *d_t2, float *d_t3, int w, int h, float alpha, float beta){
+// Compute gradient
+__global__ void compute_gradient(float *d_gradx, float *d_grady, float *d_imgIn, int w, int h){
 	// Get coordinates
-	int x = threadIdx.x + blockDim.x*blockIdx.x;
-	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	// Get index
-	int idx = x + (size_t)w*y;
-	// Get eigenvalue
-	compute_eigenvalue(d_eigen_value, d_t1[idx], d_t2[idx], d_t3[idx]);
-	// Mark corner as red
-	if (d_eigen_value[0] > alpha){
-		d_imgOut[idx] = 1;
-		d_imgOut[idx + (size_t)w*h] = 0;
-		d_imgOut[idx + (size_t)w*h*2] = 0;
-	} 
-	// Mark edge as yellow
-	else if (d_eigen_value[1] >= alpha && alpha >= beta && beta >= d_eigen_value[0]){
-		d_imgOut[idx] = 1;
-		d_imgOut[idx + (size_t)w*h] = 1;
-		d_imgOut[idx + (size_t)w*h*2] = 0;
-	} else {
-		d_imgOut[idx] = d_imgOut[idx]*0.5;
-		d_imgOut[idx + (size_t)w*h] = d_imgOut[idx + (size_t)w*h]*0.5;
-		d_imgOut[idx + (size_t)w*h*2] = d_imgOut[idx + (size_t)w*h*2]*0.5;
-	}
-}
-
-
-// Compute M
-__global__ void compute_M(float *d_m1, float *d_m2, float *d_m3, float *d_gradx, float *d_grady, int w, int h, int nc){
-	// Get coordinates
-	int x = threadIdx.x + blockDim.x*blockIdx.x;
-	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	// Get index in matrices m
-	size_t idx_2d = x + (size_t)w*y;
-	// Initialise sums
-	float sum1 = 0;	
-	float sum2 = 0;
-	float sum3 = 0;
-	// Loop through channels
-	for (size_t c = 0 ; c < nc; c++){
-		// Get index
-		size_t idx = x + (size_t)w*y + (size_t)w*h*c;	
-		sum1 += d_gradx[idx] * d_gradx[idx];
-		sum2 += d_gradx[idx] * d_grady[idx];
-		sum3 += d_grady[idx] * d_grady[idx];
-	}
-	// Fill matrices
-	d_m1[idx_2d] = sum1;
-	d_m2[idx_2d] = sum2;
-	d_m3[idx_2d] = sum3;
-}
-
-// Rotationally robust gradient
-__global__ void rotational_gradient(float *d_imgIn, float *d_gradx, float *d_grady, int w, int h, int nc){
-	// Get coordinates
-	int x = threadIdx.x + blockDim.x*blockIdx.x;
-	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	int z = threadIdx.z + blockDim.z*blockIdx.z;
-	// Get indices
-	size_t idx = x + (size_t)w*y + (size_t)w*h*z;
+	int x = threadIdx.x + blockIdx.x*blockDim.x;
+	int y = threadIdx.y + blockIdx.x*blockDim.y;
+	int z = threadIdx.z + blockIdx.x*blockDim.z;
+	// Get high indices	
+	size_t x_high = x + 1 + (size_t)w*y + (size_t)w*h*z;
+	size_t y_high = x + 1 + (size_t)w*(y+1) + (size_t)w*h*z;
+	size_t idx    = x + (size_t)w*y + (size_t)w*h*z;
 	// Compute gradient
-	if (x < w && y < h && z < nc){
-		// Get neighbouring indices
-		int x_high = x + 1;
-		int y_high = y + 1;
-		int x_low  = x - 1;
-		int y_low  = y - 1;
-		// Clamping
-		if (x_high > w - 1){
-			x_high = w - 1;
-		}
-		if (y_high > h - 1){
-			y_high = h - 1;
-		}
-		if (x_low < 0){
-			x_low = 0;	
-		}
-		if (y_low < 0){
-			y_low = 0;
-		}
-		// Get indices of neighbouring indices
-		size_t idx_x_high_y_high = x_high + (size_t)w*y_high + (size_t)w*h*z;
-		size_t idx_x_high_y_low  = x_high + (size_t)w*y_low  + (size_t)w*h*z;
-		size_t idx_x_low_y_high  = x_low  + (size_t)w*y_high + (size_t)w*h*z;
-		size_t idx_x_low_y_low   = x_low  + (size_t)w*y_low  + (size_t)w*h*z;
-		size_t idx_x_high_y_mid  = x_high + (size_t)w*y      + (size_t)w*h*z;
-		size_t idx_x_low_y_mid   = x_low  + (size_t)w*y      + (size_t)w*h*z;
-		size_t idx_x_mid_y_high  = x      + (size_t)w*y_high + (size_t)w*h*z;
-		size_t idx_x_mid_y_low   = x      + (size_t)w*y_low  + (size_t)w*h*z;
-		// Compute gradient	
-		d_gradx[idx] = (3*d_imgIn[idx_x_high_y_high] + 10*d_imgIn[idx_x_high_y_mid] 
-			  		  + 3*d_imgIn[idx_x_high_y_low]  - 3*d_imgIn[idx_x_low_y_high]  
-					  - 10*d_imgIn[idx_x_low_y_mid]  - 3*d_imgIn[idx_x_low_y_low])/32;
-
-		d_grady[idx] = (3*d_imgIn[idx_x_high_y_high] + 10*d_imgIn[idx_x_mid_y_high] 
-					  + 3*d_imgIn[idx_x_low_y_high]  - 3*d_imgIn[idx_x_high_y_low]  
-					  - 10*d_imgIn[idx_x_mid_y_low]  - 3*d_imgIn[idx_x_low_y_low])/32;
-	}
+	if (x < w && y < h){
+		d_gradx[idx] = d_imgIn[x_high] - d_imgIn[idx];
+	} else 
+		d_gradx[idx] = 0;
+	if (y < h-1){
+		d_grady[idx] = d_imgIn[y_high] - d_imgIn[idx];
+	} else
+		d_grady[idx] = 0;
 }
-	
-// Convolution on global memory
-__global__ void convolution_global(float *d_imgIn, float *d_imgOut, float *d_kernel, int w, int h, int nc, int w_kernel, int h_kernel, bool kernel_is_const){
+
+// Compute divergence
+__global__ void compute_divergence(float *d_div, float *d_imgIn, int w, int h){
 	// Get coordinates
-	int x = threadIdx.x + blockDim.x*blockIdx.x;
-	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	//int z = threadIdx.z + blockDim.z*blockIdx.z;
-	// Get indices
-	size_t idx = x + (size_t)w*y;
-	// Initialise d_imgOut
-	// Set origin
-	int mid = (w_kernel-1)/2;
-	// Convolution - Note x_kernel is the global x coordinate of kernel in the problem domain
-	for (size_t c = 0; c < nc; c++){
-		size_t idx_3d = idx + (size_t)w*h*c;
-		d_imgOut[idx_3d] = 0.0f;
-		if (x < w && y < h){
-			for (size_t j = 0; j < h_kernel; j++){
-				for (size_t i = 0; i < w_kernel; i++){
-					// Boundary condition
-					int x_kernel_global = x - mid + i;
-					int y_kernel_global = y - mid + j;
-					// clamping
-					if (x_kernel_global < 0){
-						x_kernel_global = 0;
-					}
-					if (x_kernel_global > w-1){
-						x_kernel_global = w - 1;
-					}
-					if (y_kernel_global < 0){
-						y_kernel_global = 0;
-					}
-					if (y_kernel_global > h - 1){
-						y_kernel_global = h - 1;
-					}
-					// Get indices
-					int idx_kernel_local = i + w_kernel*j;
-					int idx_kernel_global = x_kernel_global + w*y_kernel_global + w*h*c;
-					// Multiply and sum
-					d_imgOut[idx_3d] += d_kernel[idx_kernel_local] * d_imgIn[idx_kernel_global];
-				}
-			}
-		}
-	}
+	int x = threadIdx.x + blockIdx.x*blockDim.x;
+	int y = threadIdx.y + blockIdx.x*blockDim.y;
+	int z = threadIdx.z + blockIdx.x*blockDim.z;
+	// Get low indices
+	size_t idx = x + (size_t)w*y + (size_t)w*h*z;
+	size_t x_low = x-1 + (size_t)w*y + (size_t)h*w*z;
+	size_t y_low = x + (size_t)w*(y-1) + (size_t)h*w*z;
+	// Compute divergence
+	if (x < w && y < h){
+     	float v_1 = d_imgIn[idx] - d_imgIn[x_low];
+    } else
+    	float v_1[idx] = 0;
+    if (y > 1){
+        float v_2 = d_imgIn[idx] - d_imgIn[y_low];
+    } else
+        float v_2 = 0;
+    // Sum gradients
+    d_div[idx] = v_1 + v_2;
 }
 
-// Set up kernel
-void get_kernel(float *kernel, int w_kernel, int h_kernel, const float pi, float sigma){
-	//Set up parameters
-	int origin = w_kernel/2;
-	float total = 0.0f;
-	// Define 2D Gaussian kernel
-	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
-		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
-			int a = x_kernel - origin;
-			int b = y_kernel - origin;
-			int idx = x_kernel + w_kernel*y_kernel;
-			kernel[idx] = (1.0f / (2.0f*pi*sigma*sigma))*exp(-1*((a*a+b*b) / (2*sigma*sigma)));
-			total += kernel[idx];
-		}
-	}
-	// Normalise kernel
-	for (size_t y_kernel = 0; y_kernel < h_kernel; y_kernel++){
-		for (size_t x_kernel = 0; x_kernel < w_kernel; x_kernel++){
-			int idx = x_kernel + w_kernel*y_kernel;
-			kernel[idx] /= total;
-		}
-	}
-}
+
+
+
+
 
 // main
 int main(int argc, char **argv)
