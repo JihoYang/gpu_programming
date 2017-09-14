@@ -352,6 +352,7 @@ int main(int argc, char **argv)
 
 #ifdef CAMERA
     // end of camera loop
+	}
 #else
     // wait for key inputs
     cv::waitKey(0);
