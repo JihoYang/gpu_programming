@@ -44,7 +44,7 @@ __global__ void compute_gradient(float *d_gradx, float *d_grady, float *d_imgIn,
 }
 
 // Compute divergence
-__global__ void compute_divergence(float *d_div, float *d_v_1, float *d_v_2, float *d_imgIn, int w, int h, int sizeImg){
+__global__ void compute_divergence(float *d_div, float *d_v_1, float *d_v_2, int w, int h, int sizeImg){
 	// Get x y z pixel coordinates in 3D kernel
 	int x = threadIdx.x + blockIdx.x*blockDim.x;
 	int y = threadIdx.y + blockIdx.y*blockDim.y;
@@ -53,19 +53,22 @@ __global__ void compute_divergence(float *d_div, float *d_v_1, float *d_v_2, flo
 	size_t idx = x + (size_t)w*y + (size_t)h*w*z;
 	size_t x_low = x-1 + (size_t)w*y + (size_t)h*w*z;
 	size_t y_low = x + (size_t)w*(y-1) + (size_t)h*w*z;
+	// Temporary values
+	float v_x, v_y;
 	// Ensure no threads are out of problem domain
 	if (idx < sizeImg){
 		// Compute divergence
 		if (x > 1){
-			d_v_1[idx] = d_imgIn[idx] - d_imgIn[x_low];
+			v_x = d_v_1[idx] - d_v_1[x_low];
 		} else
-			d_v_1[idx] = 0;
+			//d_v_1[idx] = 0;
+			v_x = 0;
 		if (y > 1){
-			d_v_2[idx] = d_imgIn[idx] - d_imgIn[y_low];
+			v_y = d_v_2[idx] - d_v_2[y_low];
 		} else
-			d_v_2[idx] = 0;
+			v_y = 0;
 		// Sum gradients
-		d_div[idx] = d_v_1[idx] + d_v_2[idx];
+		d_div[idx] = v_x + v_y;
 	}
 }
 
@@ -251,7 +254,7 @@ int main(int argc, char **argv)
 	float *d_div = NULL;
 	cudaMalloc(&d_div, nbytes); CUDA_CHECK;
 	// Compute divergence
-	compute_divergence <<<grid, block>>> (d_div, d_gradx, d_grady, d_imgIn, w, h, sizeImg);
+	compute_divergence <<<grid, block>>> (d_div, d_gradx, d_grady, w, h, sizeImg);
 	// Copy back to CPU
 	//cudaMemcpy(imgOut, d_div, nbytes, cudaMemcpyDeviceToHost); CUDA_CHECK;
 

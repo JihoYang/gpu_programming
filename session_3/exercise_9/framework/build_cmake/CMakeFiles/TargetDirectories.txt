@@ -1,0 +1,3 @@
+/usr/prakt/s151/gpu_programming/session_3/exercise_9/framework/build_cmake/CMakeFiles/rebuild_cache.dir
+/usr/prakt/s151/gpu_programming/session_3/exercise_9/framework/build_cmake/CMakeFiles/edit_cache.dir
+/usr/prakt/s151/gpu_programming/session_3/exercise_9/framework/build_cmake/CMakeFiles/main.dir
