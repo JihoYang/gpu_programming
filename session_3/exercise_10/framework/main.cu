@@ -89,11 +89,11 @@ __device__ void get_diffusion(float *d_gradx, float *d_grady, float *d_norm, int
 		// Epsilo
 		float eps = 0.03f;
 		// Constant diffusion	
-		//g = 1.0f;
+		g = 1.0f;
 		// Huber diffusion
 		//g = 1.0f/ max(eps, d_norm[idx]);	
 		// Stronger(?) Huber diffusion	
-		g = (exp(-d_norm[idx]*d_norm[idx]/eps))/eps;
+		//g = (exp(-d_norm[idx]*d_norm[idx]/eps))/eps;
 
 		// Apply diffusion
 		d_gradx[idx_3d] *= g;
@@ -154,7 +154,7 @@ __global__ void compute_divergence(float *d_div, float *d_gradx, float *d_grady,
 }
 
 // Compute eigenvalue of a 2 by 2 matrix
-__device__ void compute_eigenvalue(float *d_eigen_value, float d_t1_val, float d_t2_val, float d_t3_val){
+__device__ void compute_eigenvalue(float *d_eigen_value, float *d_eigen_vector, float d_t1_val, float d_t2_val, float d_t3_val){
 	// Define matrix	
 	float A[4] = {d_t1_val, d_t2_val, d_t2_val, d_t3_val};
 	// Define elements
@@ -174,6 +174,27 @@ __device__ void compute_eigenvalue(float *d_eigen_value, float d_t1_val, float d
 		d_eigen_value[0] = d_eigen_value[1];
 		d_eigen_value[1] = swap;
 	}
+	// Compute eigenvectors
+	if (c != 0){
+		d_eigen_vector[0] = d_eigen_value[0] - d;
+		d_eigen_vector[1] = c;
+		d_eigen_vector[2] = d_eigen_value[1] - d;
+		d_eigen_vector[3] = c;
+	}
+	if (b != 0){
+		d_eigen_vector[0] = b;
+		d_eigen_vector[1] = d_eigen_value[0] - a;
+		d_eigen_vector[4] = b;
+		d_eigen_vector[3] = d_eigen_value[1] - a;
+	}
+	if (b == 0 && c == 0){
+		d_eigen_vector[0] = 1;
+		d_eigen_vector[1] = 0;
+		d_eigen_vector[2] = 0;
+		d_eigen_vector[3] = 1;
+	}
+
+
 }
 	
 // Convolution on global memory
@@ -422,6 +443,7 @@ int main(int argc, char **argv)
 	float *d_norm;
 	float *d_div;
 	float *d_eigen_value;
+	float *d_eigen_vector;
 
 
 	// CUDA malloc
@@ -435,6 +457,7 @@ int main(int argc, char **argv)
 	cudaMalloc(&d_div,   nbytes);					CUDA_CHECK;
 	cudaMalloc(&d_norm, w*h*sizeof(float));			CUDA_CHECK;
 	cudaMalloc(&d_eigen_value, 2*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_eigen_vector, 4*sizeof(float));	CUDA_CHECK;
 
 
 	// CUDA copy
