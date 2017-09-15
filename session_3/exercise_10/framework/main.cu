@@ -7,7 +7,7 @@
 // ### Summer Semester 2017, September 11 - October 9
 // ###
 
-// Exercise 9
+// Exercise 10
 
 // Written by: Jiho Yang (M.Sc student in Computational Science & Engineering)
 // Matriculation number: 03675799
@@ -24,7 +24,7 @@ const float pi = 3.141592653589793238462f;
 //#define CAMERA
 
 // Compute gradient
-__global__ void compute_gradient(float *d_gradx, float *d_grady, float *d_imgIn, int w, int h, int nc){
+__device__ void compute_gradient(float *d_gradx, float *d_grady, float *d_imgIn, int w, int h, int nc){
 	// Get x y z pixel coordinates in 3D kernel
 	int x = threadIdx.x + blockIdx.x*blockDim.x;
 	int y = threadIdx.y + blockIdx.y*blockDim.y;
@@ -73,57 +73,6 @@ __device__ void compute_norm(float *d_norm, float *d_vec1, float *d_vec2, int w,
 	}
 }
 
-
-// Apply nonlinear diffusion
-__device__ void get_diffusion(float *d_gradx, float *d_grady, float *d_norm, int w, int h, int nc){
-	// Get coordinates
-	int x = threadIdx.x + blockDim.x*blockIdx.x;
-	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	int z = threadIdx.z + blockDim.z*blockIdx.z;
-	// Get index
-	size_t idx = x + (size_t)w*y;
-	size_t idx_3d = x + (size_t)w*y + (size_t)w*h*z;
-	if (x < w && y < h){
-		// Diffusion factor
-		float g;
-		// Epsilo
-		float eps = 0.03f;
-		// Constant diffusion	
-		g = 1.0f;
-		// Huber diffusion
-		//g = 1.0f/ max(eps, d_norm[idx]);	
-		// Stronger(?) Huber diffusion	
-		//g = (exp(-d_norm[idx]*d_norm[idx]/eps))/eps;
-
-		// Apply diffusion
-		d_gradx[idx_3d] *= g;
-		d_grady[idx_3d] *= g;
-	}
-}
-
-// Apply diffusion
-__global__ void apply_diffusion(float *d_imgIn, float *d_gradx, float *d_grady, float *d_norm, int w, int h, int nc){
-	// Compute L2 norm
-	compute_norm(d_norm, d_gradx, d_grady, w, h, nc);
-	// Get diffusion
-	get_diffusion(d_gradx, d_grady, d_norm, w, h, nc);
-}
-
-// Update image
-__global__ void update_image(float *d_imgIn, float *d_div, float tau, int w, int h, int nc){
-	// Get coordinates
-	int x = threadIdx.x + blockDim.x*blockIdx.x;
-	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	int z = threadIdx.z + blockDim.z*blockIdx.z;
-	// Get index
-	size_t idx = x + (size_t)w*y + (size_t)w*h*z;
-	if (x < w && y < h){
-		// Update image
-		d_imgIn[idx] += tau * d_div[idx];
-	}
-}
-
-
 // Compute divergence
 __global__ void compute_divergence(float *d_div, float *d_gradx, float *d_grady, int w, int h, int nc){
 	// Get x y z pixel coordinates in 3D kernel
@@ -151,50 +100,6 @@ __global__ void compute_divergence(float *d_div, float *d_gradx, float *d_grady,
 		// Sum gradients
 		d_div[idx] = v_x + v_y;
 	}
-}
-
-// Compute eigenvalue of a 2 by 2 matrix
-__device__ void compute_eigenvalue(float *d_eigen_value, float *d_eigen_vector, float d_t1_val, float d_t2_val, float d_t3_val){
-	// Define matrix	
-	float A[4] = {d_t1_val, d_t2_val, d_t2_val, d_t3_val};
-	// Define elements
-	float a = A[0];
-	float b = A[1];
-	float c = A[2];
-	float d = A[3];	
-	// Trace and determinant
-	float T = a + d;
-	float D = a*d - b*c;
-	// Compute eigenvalue
-	d_eigen_value[0] = T/2 + sqrtf(T*T/4-D);
-	d_eigen_value[1] = T/2 - sqrtf(T*T/4-D);
-	// Sort eigenvalue array
-	if (d_eigen_value[0] > d_eigen_value[1]){
-		float swap = d_eigen_value[0];
-		d_eigen_value[0] = d_eigen_value[1];
-		d_eigen_value[1] = swap;
-	}
-	// Compute eigenvectors
-	if (c != 0){
-		d_eigen_vector[0] = d_eigen_value[0] - d;
-		d_eigen_vector[1] = c;
-		d_eigen_vector[2] = d_eigen_value[1] - d;
-		d_eigen_vector[3] = c;
-	}
-	if (b != 0){
-		d_eigen_vector[0] = b;
-		d_eigen_vector[1] = d_eigen_value[0] - a;
-		d_eigen_vector[4] = b;
-		d_eigen_vector[3] = d_eigen_value[1] - a;
-	}
-	if (b == 0 && c == 0){
-		d_eigen_vector[0] = 1;
-		d_eigen_vector[1] = 0;
-		d_eigen_vector[2] = 0;
-		d_eigen_vector[3] = 1;
-	}
-
-
 }
 	
 // Convolution on global memory
@@ -266,6 +171,170 @@ void get_kernel(float *kernel, int w_kernel, int h_kernel, const float pi, float
 	}
 }
 
+// Compute eigenvalue of a 2 by 2 matrix
+__device__ void compute_eigenvalue(float eigen_value[], float eigen_vector[], float d_t1_val, float d_t2_val, float d_t3_val){
+	// Define matrix	
+	float A[4] = {d_t1_val, d_t2_val, d_t2_val, d_t3_val};
+	// Define elements
+	float a = A[0];
+	float b = A[1];
+	float c = A[2];
+	float d = A[3];	
+	// Trace and determinant
+	float T = a + d;
+	float D = a*d - b*c;
+	// Compute eigenvalue
+	eigen_value[0] = T/2 + sqrtf(T*T/4-D);
+	eigen_value[1] = T/2 - sqrtf(T*T/4-D);
+	// Sort eigenvalue array
+	if (eigen_value[0] > eigen_value[1]){
+		float swap = eigen_value[0];
+		eigen_value[0] = eigen_value[1];
+		eigen_value[1] = swap;
+	}
+	// Compute eigenvectors
+	if (c != 0){
+		eigen_vector[0] = eigen_value[0] - d;
+		eigen_vector[1] = c;
+		eigen_vector[2] = eigen_value[1] - d;
+		eigen_vector[3] = c;
+	}
+	if (b != 0){
+		eigen_vector[0] = b;
+		eigen_vector[1] = eigen_value[0] - a;
+		eigen_vector[4] = b;
+		eigen_vector[3] = eigen_value[1] - a;
+	}
+	if (b == 0 && c == 0){
+		eigen_vector[0] = 1;
+		eigen_vector[1] = 0;
+		eigen_vector[2] = 0;
+		eigen_vector[3] = 1;
+	}
+}
+
+// Return eigenvalue and eigenvector
+__device__ void get_eigenvalue(float eigen_value[], float eigen_vector[], float *d_t1, float *d_t2, float *d_t3, int w, int h){
+	// Get coordinates
+	int x = threadIdx.x + blockDim.x*blockIdx.x;
+	int y = threadIdx.y + blockDim.y*blockIdx.y;
+	// Get index in matrices m
+	size_t idx = x + (size_t)w*y;
+	// Compute eigenvalue and eigenvector
+	compute_eigenvalue(eigen_value, eigen_vector, d_t1[idx], d_t2[idx], d_t3[idx]);
+}
+
+
+// compute_diffusion
+__global__ void anisotropic_diffusion(float *d_div, float *d_gradx, float *d_grady, float *d_imgIn, float alpha, float C, float *d_t1, float *d_t2, float *d_t3, int w, int h, int nc){
+	// Get coordinates
+	int x = threadIdx.x + blockDim.x*blockIdx.x;
+	int y = threadIdx.y + blockDim.y*blockIdx.y;
+	int z = threadIdx.z + blockDim.z*blockIdx.z;
+	// Get index
+	size_t idx = x + (size_t)w*y + (size_t)w*h*z;
+	// Eigenvalues and eigenvectors
+	float eigen_value[2];
+	float eigen_vector[4];
+	// Compute eigenvalues and eigenvector
+	get_eigenvalue(eigen_value, eigen_vector, d_t1, d_t2, d_t3, w, h);
+	// Get Mu
+	float mu_1 = alpha;
+	float mu_2;
+	if (eigen_value[0] == eigen_value[1]){
+		mu_2 = alpha;
+	} else{
+		mu_2 = alpha + (1 - alpha)*exp(-C / (eigen_value[0] - eigen_value[1])^2);
+	}
+	// Get diffusion tensor
+	float G[4];
+	G[0] = mu_1*eigen_vector[0]*eigen_vector[0] + mu_2 * eigen_vector[2]*eigen_vector[2];
+	G[1] = mu_1*eigen_vector[0]*eigen_vector[1] + mu_2 * eigen_vector[2]*eigen_vector[3];
+	G[2] = mu_1*eigen_vector[0]*eigen_vector[1] + mu_2 * eigen_vector[2]*eigen_vector[3];
+	G[3] = mu_1*eigen_vector[1]*eigen_vector[1] + mu_2 * eigen_vector[3]*eigen_vector[3];
+	// Compute gradient
+	compute_gradient(d_gradx, d_grady, d_imgIn, w, h, nc);
+	// Multiply with gradient
+	if (x < w && y < h){
+		d_gradx[idx] *= G[0]*d_gradx[idx] + G[1]*d_grady[idx];
+		d_grady[idx] *= G[2]*d_gradx[idx] + G[3]*d_grady[idx];
+	}
+}
+
+// Compute M
+__global__ void compute_M(float *d_m1, float *d_m2, float *d_m3, float *d_gradx, float *d_grady, int w, int h, int nc){
+	// Get coordinates
+	int x = threadIdx.x + blockDim.x*blockIdx.x;
+	int y = threadIdx.y + blockDim.y*blockIdx.y;
+	// Get index in matrices m
+	size_t idx_2d = x + (size_t)w*y;
+	// Initialise sums
+	float sum1 = 0;	
+	float sum2 = 0;
+	float sum3 = 0;
+	// Loop through channels
+	for (size_t c = 0 ; c < nc; c++){
+		// Get index
+		size_t idx = x + (size_t)w*y + (size_t)w*h*c;	
+		sum1 += d_gradx[idx] * d_gradx[idx];
+		sum2 += d_gradx[idx] * d_grady[idx];
+		sum3 += d_grady[idx] * d_grady[idx];
+	}
+	// Fill matrices
+	d_m1[idx_2d] = sum1;
+	d_m2[idx_2d] = sum2;
+	d_m3[idx_2d] = sum3;
+}
+
+// Rotationally robust gradient
+__global__ void rotational_gradient(float *d_imgIn, float *d_gradx, float *d_grady, int w, int h, int nc){
+	// Get coordinates
+	int x = threadIdx.x + blockDim.x*blockIdx.x;
+	int y = threadIdx.y + blockDim.y*blockIdx.y;
+	int z = threadIdx.z + blockDim.z*blockIdx.z;
+	// Get indices
+	size_t idx = x + (size_t)w*y + (size_t)w*h*z;
+	// Compute gradient
+	if (x < w && y < h && z < nc){
+		// Get neighbouring indices
+		int x_high = x + 1;
+		int y_high = y + 1;
+		int x_low  = x - 1;
+		int y_low  = y - 1;
+		// Clamping
+		if (x_high > w - 1){
+			x_high = w - 1;
+		}
+		if (y_high > h - 1){
+			y_high = h - 1;
+		}
+		if (x_low < 0){
+			x_low = 0;	
+		}
+		if (y_low < 0){
+			y_low = 0;
+		}
+		// Get indices of neighbouring indices
+		size_t idx_x_high_y_high = x_high + (size_t)w*y_high + (size_t)w*h*z;
+		size_t idx_x_high_y_low  = x_high + (size_t)w*y_low  + (size_t)w*h*z;
+		size_t idx_x_low_y_high  = x_low  + (size_t)w*y_high + (size_t)w*h*z;
+		size_t idx_x_low_y_low   = x_low  + (size_t)w*y_low  + (size_t)w*h*z;
+		size_t idx_x_high_y_mid  = x_high + (size_t)w*y      + (size_t)w*h*z;
+		size_t idx_x_low_y_mid   = x_low  + (size_t)w*y      + (size_t)w*h*z;
+		size_t idx_x_mid_y_high  = x      + (size_t)w*y_high + (size_t)w*h*z;
+		size_t idx_x_mid_y_low   = x      + (size_t)w*y_low  + (size_t)w*h*z;
+		// Compute gradient	
+		d_gradx[idx] = (3*d_imgIn[idx_x_high_y_high] + 10*d_imgIn[idx_x_high_y_mid] 
+			  		  + 3*d_imgIn[idx_x_high_y_low]  - 3*d_imgIn[idx_x_low_y_high]  
+					  - 10*d_imgIn[idx_x_low_y_mid]  - 3*d_imgIn[idx_x_low_y_low])/32;
+
+		d_grady[idx] = (3*d_imgIn[idx_x_high_y_high] + 10*d_imgIn[idx_x_mid_y_high] 
+					  + 3*d_imgIn[idx_x_low_y_high]  - 3*d_imgIn[idx_x_high_y_low]  
+					  - 10*d_imgIn[idx_x_mid_y_low]  - 3*d_imgIn[idx_x_low_y_low])/32;
+	}
+}
+
+
 // main
 int main(int argc, char **argv)
 {
@@ -305,7 +374,8 @@ int main(int argc, char **argv)
 	float tau = 0.0025f;
 	int	N = 600;
 	// Convolution kernel
-	float sigma = sqrtf(2*tau*N);
+	float sigma = 1.0f;
+	float phi = 1.5f;
 	getParam("sigma", sigma, argc, argv);
 	cout << "sigma: " << sigma << endl;
     // ### Define your own parameters here as needed    
@@ -430,6 +500,9 @@ int main(int argc, char **argv)
     dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1));
 
 
+	float alpha = 0.5f;
+	float C = 1.0f;
+
 	Timer timer; timer.start();
 
 	// Arrays
@@ -440,10 +513,24 @@ int main(int argc, char **argv)
 	float *d_imgOut_orig;
 	float *d_gradx;
 	float *d_grady;
+	float *d_gradx_tensor;	
+	float *d_grady_tensor;
 	float *d_norm;
 	float *d_div;
-	float *d_eigen_value;
-	float *d_eigen_vector;
+	float *d_m1;
+	float *d_m2;
+	float *d_m3;
+	float *d_t1;
+	float *d_t2;
+	float *d_t3;
+
+	float *m1 = new float[w*h];
+	float *m2 = new float[w*h];
+	float *m3 = new float[w*h];
+	float *t1 = new float[w*h];
+	float *t2 = new float[w*h];
+	float *t3 = new float[w*h];
+	
 
 
 	// CUDA malloc
@@ -456,26 +543,39 @@ int main(int argc, char **argv)
 	cudaMalloc(&d_grady, nbytes);					CUDA_CHECK;
 	cudaMalloc(&d_div,   nbytes);					CUDA_CHECK;
 	cudaMalloc(&d_norm, w*h*sizeof(float));			CUDA_CHECK;
-	cudaMalloc(&d_eigen_value, 2*sizeof(float));	CUDA_CHECK;
-	cudaMalloc(&d_eigen_vector, 4*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_m1, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_m2, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_m3, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_t1, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_t2, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_t3, w*h*sizeof(float));	CUDA_CHECK;
+	cudaMalloc(&d_gradx_tensor, nbytes);	CUDA_CHECK;
+	cudaMalloc(&d_grady_tensor, nbytes);	CUDA_CHECK;
 
 
 	// CUDA copy
     cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);												CUDA_CHECK;
     cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    											CUDA_CHECK;
-	cudaMemcpy(d_imgIn_orig, imgIn, nbytes, cudaMemcpyHostToDevice);													CUDA_CHECK;
+  	// Initial convolution
+    convolution_global <<< grid, block >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel);
+   	// Compute gradient of the convoluted image
+    rotational_gradient <<< grid, block >>> (d_imgIn, d_gradx_tensor, d_grady_tensor, w, h, nc);
+	// Compute m1, m2, and m3
+    compute_M <<< grid, block >>> (d_m1, d_m2, d_m3, d_gradx, d_grady, w, h, nc);
+	// Convolution on m1
+    convolution_global <<< grid, block >>> (d_m1, d_t1, d_kernel, w, h, 1, w_kernel, h_kernel);
+	// Convolution on m2
+    convolution_global <<< grid, block >>> (d_m2, d_t2, d_kernel, w, h, 1, w_kernel, h_kernel);
+	// Convolution on m3
+    convolution_global <<< grid, block >>> (d_m3, d_t3, d_kernel, w, h, 1, w_kernel, h_kernel);
+	// Apply diffusion tensor
+	anisotropic_diffusion <<< grid, block >>> (d_div, d_gradx, d_grady, d_imgIn, alpha, C, d_t1, d_t2, d_t3, w, h, nc);
+	// Compute divergence
+	compute_divergence <<< grid, block >>> (d_div, d_gradx, d_grady, w, h, nc);
 	// Update image
-	float time = 0;
 	
-	for (size_t i = 0; i < N; i++){
-		compute_gradient <<< grid, block >>> (d_gradx, d_grady, d_imgIn, w, h, nc);										CUDA_CHECK;
-		apply_diffusion <<< grid, block >>> (d_imgIn, d_gradx, d_grady, d_norm, w, h, nc);								CUDA_CHECK;
-		compute_divergence <<< grid, block >>> (d_div, d_gradx, d_grady, w, h, nc);										CUDA_CHECK;
-		time = time + tau;
-		update_image <<< grid, block >>> (d_imgIn, d_div, tau, w, h, nc);												CUDA_CHECK;
-			}
-	// Convolution 
-    convolution_global <<< grid, block >>> (d_imgIn_orig, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel);			CUDA_CHECK;
+
+
 	
 
 
@@ -496,7 +596,6 @@ int main(int argc, char **argv)
 	cudaFree(d_gradx);  		CUDA_CHECK;
 	cudaFree(d_grady);  		CUDA_CHECK;
 	cudaFree(d_norm);			CUDA_CHECK;
-	cudaFree(d_eigen_value);	CUDA_CHECK;
 
 
 	// Type of processor
