@@ -56,7 +56,6 @@ __device__ void compute_norm(float *d_norm, float *d_vec1, float *d_vec2, int w,
 	// Get coordinates
 	int x = threadIdx.x + blockIdx.x*blockDim.x;
 	int y = threadIdx.y + blockIdx.y*blockDim.y;
-	int z = threadIdx.z + blockIdx.z*blockDim.z;
 	// Get index
 	int idx = x + (size_t)w*y;
 	// Compute norm
@@ -69,8 +68,8 @@ __device__ void compute_norm(float *d_norm, float *d_vec1, float *d_vec2, int w,
 			val2 = d_vec2[idx_3d];
 			sqrd1 += val1*val1;
 			sqrd2 += val2*val2;
-			d_norm[idx] = sqrtf(sqrd1*sqrd1 + sqrd2*sqrd2);
 		}
+		d_norm[idx] = sqrtf(sqrd1*sqrd1 + sqrd2*sqrd2);
 	}
 }
 
@@ -87,15 +86,14 @@ __device__ void get_diffusion(float *d_gradx, float *d_grady, float *d_norm, int
 	if (x < w && y < h){
 		// Diffusion factor
 		float g;
-		// Epsilon
-		float eps = 1.0f;
-		// Compute diffusion factors
-		
-		//g = 1.0f;
-
+		// Epsilo
+		float eps = 0.03f;
+		// Constant diffusion	
+		g = 1.0f;
+		// Huber diffusion
 		//g = 1.0f/ max(eps, d_norm[idx]);	
-		
-		g = (exp(-d_norm[idx]*d_norm[idx]/eps))/eps;
+		// Stronger(?) Huber diffusion	
+		//g = (exp(-d_norm[idx]*d_norm[idx]/eps))/eps;
 
 		// Apply diffusion
 		d_gradx[idx_3d] *= g;
@@ -279,8 +277,14 @@ int main(int argc, char **argv)
     bool gray = false;
     getParam("gray", gray, argc, argv);
     cout << "gray: " << gray << endl;
+
+
+
+	// Diffusion
+	float tau = 0.0025f;
+	int	N = 600;
 	// Convolution kernel
-	float sigma = 3.0f;
+	float sigma = sqrtf(2*tau*N);
 	getParam("sigma", sigma, argc, argv);
 	cout << "sigma: " << sigma << endl;
     // ### Define your own parameters here as needed    
@@ -341,6 +345,7 @@ int main(int argc, char **argv)
     // ### Define your own output images here as needed
 	cv:: Mat mgradx(h, w, mIn.type());
 	cv:: Mat mgrady(h, w, mIn.type());
+	cv:: Mat mOut_orig(h, w, mIn.type());
 
 
     // Allocate arrays
@@ -357,6 +362,7 @@ int main(int argc, char **argv)
 
     // allocate raw output array (the computation result will be stored in this array, then later converted to mOut for displaying)
     float *imgOut = new float[(size_t)w*h*mOut.channels()];
+	float *imgOut_orig = new float[(size_t)w*h*mOut_orig.channels()];
 
     // For camera mode: Make a loop to read in camera frames
 #ifdef CAMERA
@@ -409,6 +415,8 @@ int main(int argc, char **argv)
 	float *d_kernel;
 	float *d_imgIn;
 	float *d_imgOut;
+	float *d_imgIn_orig;
+	float *d_imgOut_orig;
 	float *d_gradx;
 	float *d_grady;
 	float *d_norm;
@@ -419,7 +427,9 @@ int main(int argc, char **argv)
 	// CUDA malloc
     cudaMalloc(&d_kernel, nbytes_kernel);			CUDA_CHECK;
     cudaMalloc(&d_imgIn, nbytes); 					CUDA_CHECK;
+	cudaMalloc(&d_imgIn_orig, nbytes);				CUDA_CHECK;
     cudaMalloc(&d_imgOut, nbytes); 					CUDA_CHECK;
+	cudaMalloc(&d_imgOut_orig, nbytes);				CUDA_CHECK;
 	cudaMalloc(&d_gradx, nbytes);					CUDA_CHECK;
 	cudaMalloc(&d_grady, nbytes);					CUDA_CHECK;
 	cudaMalloc(&d_div,   nbytes);					CUDA_CHECK;
@@ -428,37 +438,36 @@ int main(int argc, char **argv)
 
 
 	// CUDA copy
-    cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);							CUDA_CHECK;
-    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    						CUDA_CHECK;
+    cudaMemcpy(d_kernel, kernel, nbytes_kernel, cudaMemcpyHostToDevice);												CUDA_CHECK;
+    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    											CUDA_CHECK;
+	cudaMemcpy(d_imgIn_orig, imgIn, nbytes, cudaMemcpyHostToDevice);													CUDA_CHECK;
 	// Update image
 	float time = 0;
-	float tau = 0.025f;
-	int	N = 1000;
 	
 	for (size_t i = 0; i < N; i++){
-		compute_gradient <<< grid, block >>> (d_gradx, d_grady, d_imgIn, w, h, nc);						CUDA_CHECK;
-		apply_diffusion <<< grid, block >>> (d_imgIn, d_gradx, d_grady, d_norm, w, h, nc);				CUDA_CHECK;
-		compute_divergence <<< grid, block >>> (d_div, d_gradx, d_grady, w, h, nc);						CUDA_CHECK;
+		compute_gradient <<< grid, block >>> (d_gradx, d_grady, d_imgIn, w, h, nc);										CUDA_CHECK;
+		apply_diffusion <<< grid, block >>> (d_imgIn, d_gradx, d_grady, d_norm, w, h, nc);								CUDA_CHECK;
+		compute_divergence <<< grid, block >>> (d_div, d_gradx, d_grady, w, h, nc);										CUDA_CHECK;
 		time = time + tau;
-		update_image <<< grid, block >>> (d_imgIn, d_div, tau, w, h, nc);								CUDA_CHECK;
-		cudaMemcpy(imgOut, d_imgIn, nbytes, cudaMemcpyDeviceToHost);									CUDA_CHECK;
-		convert_layered_to_mat(mOut, imgOut);					
-		showImage("Diffusion", mOut, 100+w+40+i, 100);
-	}
-	
-	// Convolution on original image
-    //convolution_global <<< grid, block >>> (d_imgIn, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel);			CUDA_CHECK;
+		update_image <<< grid, block >>> (d_imgIn, d_div, tau, w, h, nc);												CUDA_CHECK;
+			}
+	// Convolution 
+    convolution_global <<< grid, block >>> (d_imgIn_orig, d_imgOut, d_kernel, w, h, nc, w_kernel, h_kernel);			CUDA_CHECK;
 	
 
+
 	// Copy the results to host
-    //cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 		CUDA_CHECK;
+	cudaMemcpy(imgOut, d_imgIn, nbytes, cudaMemcpyDeviceToHost);														CUDA_CHECK;
+    cudaMemcpy(imgOut_orig, d_imgOut, nbytes, cudaMemcpyDeviceToHost); 		CUDA_CHECK;
 	cudaMemcpy(gradx, d_gradx, nbytes, cudaMemcpyDeviceToHost);			CUDA_CHECK;
 	cudaMemcpy(grady, d_grady, nbytes, cudaMemcpyDeviceToHost);			CUDA_CHECK;
 
 
  	// Free memory
     cudaFree(d_imgIn);  		CUDA_CHECK;
+	cudaFree(d_imgIn_orig);		CUDA_CHECK;
     cudaFree(d_imgOut); 		CUDA_CHECK;
+	cudaFree(d_imgOut_orig);	CUDA_CHECK;
     cudaFree(d_kernel); 		CUDA_CHECK;
 	cudaFree(d_div);			CUDA_CHECK;
 	cudaFree(d_gradx);  		CUDA_CHECK;
@@ -482,8 +491,11 @@ int main(int argc, char **argv)
     // show input image
     showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
     // show output image: first convert to interleaved opencv format from the layered raw array
-    convert_layered_to_mat(mOut, imgOut);
-    //showImage("Output", mOut, 100+w+40, 100);
+    convert_layered_to_mat(mOut_orig, imgOut_orig);
+    showImage("Gaussian convolution", mOut_orig, 100+w+40, 300);
+
+	convert_layered_to_mat(mOut, imgOut);					
+	showImage("Diffusion", mOut, 100+w+40, 100);
 
 
     // ### Display your own output images here as needed
@@ -491,8 +503,8 @@ int main(int argc, char **argv)
 	convert_layered_to_mat(mgradx, gradx);
 	convert_layered_to_mat(mgrady, grady);
 
-	showImage("grad_x", mgradx, 100+w+50, 150);
-	showImage("grad_y", mgrady, 100+w+60, 150);
+//	showImage("grad_x", mgradx, 100+w+50, 150);
+//	showImage("grad_y", mgrady, 100+w+60, 150);
 
 
 /*
