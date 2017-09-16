@@ -6,6 +6,9 @@ how to run it: copy and paste the follinwg command
 
 ./main -i <<directory of image>>
 
+To change the tau and N refer to line 472
+For alpha and C refer to line 598
+
 
 --Solutions--
 
@@ -20,3 +23,14 @@ I tried to reduce the C value so as to increase my mu_2, but in the scope of flo
 I tried to change all the functions and values into double, and could observe some minor diffusion, but again, not significant). 
 
 Overall, I have a impression that anisotropic diffusion is very slow and weak.
+
+** I append the results using the following setup
+
+alpha = 0.9
+C = 0.0000005
+tau = 0.001
+N = 20000
+
+It's hard to distinguish the diffusion just by having those two images next to each other. Try opening on image and switch to the other one by entering space, and the diffusion is more visible.
+
+
