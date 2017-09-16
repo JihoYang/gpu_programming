@@ -29,9 +29,10 @@ __global__ void compute_histogram_global(float *d_imgIn, int *d_hist, int w, int
 	// Compute histogram
 	if (x < w && y < h && z < nc){
 		int idx = x + (size_t)w*y + (size_t)w*h*z; 
-		int idx_hist = d_imgIn[ind]*255.f;
+		int idx_hist = d_imgIn[idx]*255.f;
 		atomicAdd(&d_hist[idx_hist], 1);
 	}
+}
 
 // Compute histogram in shared memory
 __global__ void compute_histogram_shared(float *d_imgIn, int *d_hist, int w, int h, int nc){
@@ -57,7 +58,7 @@ __global__ void compute_histogram_shared(float *d_imgIn, int *d_hist, int w, int
     __syncthreads();
 	// Update the histogram in global memory
     if (t_x < 256) {
-        atomicAdd(&d_hist[t_x],shared_hist[t_x]);
+        atomicAdd(&d_hist[t_x],histogram_shared[t_x]);
     }
 }
 
@@ -97,17 +98,7 @@ int main(int argc, char **argv)
     cout << "gray: " << gray << endl;
 
     // ### Define your own parameters here as needed    
-    float gamma = 1;
-    getParam("gamma", gamma, argc, argv);
-    cout << "gamma: " << gamma << endl;
 
-    float blockX = 32;
-    getParam("blockX", blockX, argc, argv);
-    cout << "blockX: " << blockX << endl;
-
-    float blockY = 8;
-    getParam("blockY", blockY, argc, argv);
-    cout << "blockY: " << blockY << endl;
 
 
 
@@ -173,8 +164,8 @@ int main(int argc, char **argv)
     // allocate raw output array (the computation result will be stored in this array, then later converted to mOut for displaying)
     float *imgOut = new float[(size_t)w*h*mOut.channels()];
 
-    int hist_size = 256;
-    int *hist = new int[hist_size];
+    int histSize = 256;
+    int *hist = new int[histSize];
     
 	//allocate memory on device
 	float *d_imgIn = NULL;
@@ -182,11 +173,10 @@ int main(int argc, char **argv)
 	int imgSize = (size_t)w*h*nc;
 	
 	cudaMalloc(&d_imgIn, imgSize*sizeof(float)); CUDA_CHECK;
-	cudaMalloc(&d_hist, hist_size*sizeof(int)); CUDA_CHECK;
+	cudaMalloc(&d_hist, histSize*sizeof(int)); CUDA_CHECK;
 
-    dim3 block = dim3(32, 8, 1);
-    dim3 grid = dim3((w + block.x - 1) / block.x,
-            (h + block.y - 1) / block.y, (nc));
+    dim3 block = dim3(128, 1, 1);
+    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, 1);
     
     Timer timer; float t = 0;
 
@@ -211,31 +201,31 @@ int main(int argc, char **argv)
     // So we will convert as necessary, using interleaved "cv::Mat" for loading/saving/displaying, and layered "float*" for CUDA computations
     convert_mat_to_layered (imgIn, mIn);
     
-    for(int i=0;i<hist_size;i++)
+    for(int i=0;i<histSize;i++)
     	hist[i] = 0;
 	
 	//copy host memory to device
 	cudaMemcpy(d_imgIn, imgIn, imgSize*sizeof(float), cudaMemcpyHostToDevice); CUDA_CHECK;
-	cudaMemcpy(d_hist, hist, hist_size*sizeof(int), cudaMemcpyHostToDevice); CUDA_CHECK;
+	cudaMemcpy(d_hist, hist, histSize*sizeof(int), cudaMemcpyHostToDevice); CUDA_CHECK;
 
     timer.start();
     for (int i=0; i< repeats ; i++)
     {
         
-            mykernel_shared <<<grid,block>>> (d_imgIn, d_hist, w, h, nc);
+            compute_histogram_shared <<<grid,block>>> (d_imgIn, d_hist, w, h, nc);
         
     }
     timer.end();
     t = timer.get();  // elapsed time in seconds
     cout << "Average time (shared) for " << repeats << " repeat(s): " << t * 1000 / repeats << " ms" << endl;    
 
-    cudaMemcpy(d_hist, hist, hist_size*sizeof(int), cudaMemcpyHostToDevice); CUDA_CHECK;
+    cudaMemcpy(d_hist, hist, histSize*sizeof(int), cudaMemcpyHostToDevice); CUDA_CHECK;
     
     timer.start();
 	for (int i=0; i< repeats ; i++)
 	{
 		
-			mykernel <<<grid,block>>> (d_imgIn, d_hist, w, h, nc);
+			compute_histogram_global <<<grid,block>>> (d_imgIn, d_hist, w, h, nc);
 		
 	}
     timer.end();
@@ -243,7 +233,7 @@ int main(int argc, char **argv)
 	cout << "Average time (naive) for " << repeats << " repeat(s): " << t * 1000 / repeats << " ms" << endl;  
 	
 	
-//    for(int i=0;i<hist_size;i++)
+//    for(int i=0;i<histSize;i++)
 //    	hist[i] = 0;
 //	
 //	t = 0;
@@ -257,7 +247,7 @@ int main(int argc, char **argv)
 //	cout << "SHARED - Average time for " << repeats << " repeat(s): " << t * 1000 / repeats << " ms" << endl;	
 	
 	//copy result back to host memory
-	cudaMemcpy(hist, d_hist, hist_size * sizeof(int), cudaMemcpyDeviceToHost); CUDA_CHECK;
+	cudaMemcpy(hist, d_hist, histSize * sizeof(int), cudaMemcpyDeviceToHost); CUDA_CHECK;
 	
 	showHistogram256("Histogram", hist, 1000, 100);
 	
