@@ -86,8 +86,8 @@ __device__ void get_diffusion(float *d_gradx, float *d_grady, float *d_norm, int
 	if (x < w && y < h){
 		// Diffusion factor
 		float g;
-		// Epsilo
-		float eps = 0.03f;
+		// Epsilon
+		float eps = 0.03;
 		// Constant diffusion	
 		//g = 1.0f;
 		// Huber diffusion
