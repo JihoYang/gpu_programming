@@ -102,7 +102,7 @@ __global__ void compute_divergence(float *d_div, float *d_gradx, float *d_grady,
 		d_div[idx] = v_x + v_y;
 	}
 
-	if (idx == 100){
+	if (idx == 0){
 		printf("Divergence = %f\n", d_div[idx]);
 	}
 }
@@ -220,10 +220,10 @@ __device__ void compute_eigenvalue(float &eigen_value_0, float &eigen_value_1, f
 	}
 
 	// Scale eigenvector
-	eigen_vector_0 = 50*eigen_vector_0;	
-	eigen_vector_1 = 50*eigen_vector_1;	
-	eigen_vector_2 = 50*eigen_vector_2;	
-	eigen_vector_3 = 50*eigen_vector_3;	
+	eigen_vector_0 = 1.0f*eigen_vector_0;	
+	eigen_vector_1 = 1.0f*eigen_vector_1;	
+	eigen_vector_2 = 1.0f*eigen_vector_2;	
+	eigen_vector_3 = 1.0f*eigen_vector_3;	
 
 	// Get coordinates
 	int x = threadIdx.x + blockDim.x*blockIdx.x;
@@ -296,7 +296,7 @@ __global__ void apply_diffusion(float *d_gradx, float *d_grady, float *d_imgIn, 
 		d_grady[idx] = G[2]*d_gradx[idx] + G[3]*d_grady[idx];
 	}
 	
-	if (idx == 100){
+	if (idx == 0){
 		printf("After diffusion\n");
 		printf("d_gradx = %f\n", d_gradx[idx]);
 		printf("d_grady = %f\n", d_grady[idx]);
@@ -330,7 +330,7 @@ __global__ void update_image(float *d_imgIn, float *d_div, float tau, int w, int
 	// Get index
 	size_t idx = x + (size_t)w*y + (size_t)w*h*z;
 
-	if (idx == 100){
+	if (idx == 0){
 		printf("Before update\n");
 		printf("d_imgIn = %f\n", d_imgIn[idx]);
 	}
@@ -341,7 +341,7 @@ __global__ void update_image(float *d_imgIn, float *d_div, float tau, int w, int
 		d_imgIn[idx] += tau * d_div[idx];
 	}
 
-	if (idx == 100){
+	if (idx == 0){
 		printf("After update\n");
 		printf("d_imgIn = %f\n", d_imgIn[idx]);
 	}
@@ -460,8 +460,8 @@ int main(int argc, char **argv)
 
 
 	// Diffusion
-	float tau = 0.02f;
-	int	N = 2000000;
+	float tau = 0.002f;
+	int	N = 2000;
 	// Convolution kernel
 	float sigma = 0.5f;
 	float phi = 3.0f;
@@ -586,8 +586,7 @@ int main(int argc, char **argv)
 	dim3 block = dim3(128, 1, 1); 
     dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1));
 
-
-	float alpha = 0.01f;
+	float alpha = 0.9f;
 	float C = 0.0000005f;
 
 	Timer timer; timer.start();
