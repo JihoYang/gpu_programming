@@ -101,10 +101,12 @@ __global__ void compute_divergence(float *d_div, float *d_gradx, float *d_grady,
 		// Sum gradients
 		d_div[idx] = v_x + v_y;
 	}
-
+/*
 	if (idx == 0){
 		printf("Divergence = %f\n", d_div[idx]);
 	}
+*/
+
 }
 	
 // Convolution on global memory
@@ -220,10 +222,10 @@ __device__ void compute_eigenvalue(float &eigen_value_0, float &eigen_value_1, f
 	}
 
 	// Scale eigenvector
-	eigen_vector_0 = 1.0f*eigen_vector_0;	
-	eigen_vector_1 = 1.0f*eigen_vector_1;	
-	eigen_vector_2 = 1.0f*eigen_vector_2;	
-	eigen_vector_3 = 1.0f*eigen_vector_3;	
+	eigen_vector_0 = 1.f*eigen_vector_0;	
+	eigen_vector_1 = 1.f*eigen_vector_1;	
+	eigen_vector_2 = 1.f*eigen_vector_2;	
+	eigen_vector_3 = 1.f*eigen_vector_3;	
 
 	// Get coordinates
 	int x = threadIdx.x + blockDim.x*blockIdx.x;
@@ -231,13 +233,14 @@ __device__ void compute_eigenvalue(float &eigen_value_0, float &eigen_value_1, f
 	int z = threadIdx.z + blockDim.z*blockIdx.z;
 	// Get index
 	size_t idx = x + (size_t)w*y + (size_t)w*h*z;
-
+/*
 	if (idx == 0){
 		printf("a = %f\n", a);
 		printf("b = %f\n", b);
 		printf("c = %f\n", c);
 		printf("d = %f\n", d);
 	}
+*/
 
 }
 
@@ -295,7 +298,8 @@ __global__ void apply_diffusion(float *d_gradx, float *d_grady, float *d_imgIn, 
 		d_gradx[idx] = G[0]*d_gradx[idx] + G[1]*d_grady[idx];
 		d_grady[idx] = G[2]*d_gradx[idx] + G[3]*d_grady[idx];
 	}
-	
+
+/*	
 	if (idx == 0){
 		printf("After diffusion\n");
 		printf("d_gradx = %f\n", d_gradx[idx]);
@@ -319,6 +323,8 @@ __global__ void apply_diffusion(float *d_gradx, float *d_grady, float *d_imgIn, 
 		printf("Mu_2 = %f\n", mu_2);
 
 	}
+*/
+
 }
 
 // Update image
@@ -330,21 +336,24 @@ __global__ void update_image(float *d_imgIn, float *d_div, float tau, int w, int
 	// Get index
 	size_t idx = x + (size_t)w*y + (size_t)w*h*z;
 
+/*
 	if (idx == 0){
 		printf("Before update\n");
 		printf("d_imgIn = %f\n", d_imgIn[idx]);
 	}
-
+*/
 
 	if (x < w && y < h && z < nc){	
 		// Update image	
 		d_imgIn[idx] += tau * d_div[idx];
 	}
 
+/*
 	if (idx == 0){
 		printf("After update\n");
 		printf("d_imgIn = %f\n", d_imgIn[idx]);
 	}
+*/
 
 }
 
@@ -460,8 +469,8 @@ int main(int argc, char **argv)
 
 
 	// Diffusion
-	float tau = 0.002f;
-	int	N = 2000;
+	float tau = 0.1f;
+	int	N = 20000;
 	// Convolution kernel
 	float sigma = 0.5f;
 	float phi = 3.0f;
@@ -752,9 +761,9 @@ int main(int argc, char **argv)
 	convert_layered_to_mat(mt2, t2);
 	convert_layered_to_mat(mt3, t3);
 
-	showImage("t1", 10.f*mt1, 50, 250);
-	showImage("t2", 10.f*mt2, 50 + w, 250);
-	showImage("t3", 10.f*mt3, 50 + 2 * w, 250);
+	//showImage("t1", 10.f*mt1, 50, 250);
+	//showImage("t2", 10.f*mt2, 50 + w, 250);
+	//showImage("t3", 10.f*mt3, 50 + 2 * w, 250);
 
 	//showImage("grad_x", mgradx, 100+w+50, 150);
 	//showImage("grad_y", mgrady, 100+w+60, 150);

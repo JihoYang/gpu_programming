@@ -1,5 +1,9 @@
 <<Exercise 1>>
 
+How to compile:
+
+g++ <file_name.cpp> -o output
+
 	1. Release 8.0, V8.0.44
 	2. (a) GeForce GTX 1050 Ti
 			Compute capability Major/Minor version number: 6.1

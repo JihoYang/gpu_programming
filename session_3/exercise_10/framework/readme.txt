@@ -4,20 +4,19 @@ how to compile : do 'make' in build_cmake
 
 how to run it: copy and paste the follinwg command
 
-./main -i ~/cuda_ss17/images/dog.png
+./main -i <<directory of image>>
 
-you can choose any images, but dog seems to give better contrast/effects of blurring, etc
 
 --Solutions--
 
-6. If time step is taken to be high (above stability criterion) the explicit euler iteration diverges, hence giving completely wrong results. If a very large N is chosen, I assume the output image will reach towards NaN.
-	Anyhow if tau is stable, very large N would mean reaching towards steady state. I tested with N = 60000 and the output showed four regions of different colours but I am guessing as N -> infinity the output image will contain a single colour (the colour which is the most distributed in the original image);
+3. Tried different choices of C, alpha, and N and couldn't get a significant difference. This was due to very small diffusion tensor values that returns a very small value of gradients (and hence divergence). Often the divergences were zero, hence not updating the image (and if not zero, very close to zero).
 
-7. Gaussian convolution gives similar effects (same in my eyes) as the diffusion problem.
+I tested the code with G being an identity matrix and could observe a laplacian diffusion, and therefore the other parts of the codes are correct. I also checked my eigenvalues and eigenvectors (for structure tensors of couple of pixels) by comparing the results with Matlab's eig(A), and they matched. The only difference was in eigenvector, where different scaling factor was applied (the ratio of the elements, however, was the same, hence same basis). 
 
-8. Huber diffusion gives a more pastel drawing like texture to the processed image, preserving the edges more (As if one was to draw the same image but with pastel/paint);
-	The next diffusion operator (exp(-s^2/eps)/eps) is like huber diffusion but with stronger edge preserving effects.
+I tried to scale the eigenvectors to increase the values of diffusion tensor, based on the assumption that eigenvalues can be scaled and no properties are lost, and still no change in diffusion was observed (and if some bad tau values are used, the solution diverged). 
 
+I tried to reduce the C value so as to increase my mu_2, but in the scope of float precision, this didn't work out (if I decreased even more it becomes zero).
 
-To try different diffusion operators, comment/uncomment the operators on line 88 - 96
-The number of iterations (N), time step (tau), and sigma for convolution are to be modified on line 284 - 287
+I tried to change all the functions and values into double, and could observe some minor diffusion, but again, not significant). 
+
+Overall, I have a impression that anisotropic diffusion is very slow and weak.
