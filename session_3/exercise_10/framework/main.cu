@@ -206,7 +206,7 @@ __device__ void compute_eigenvalue(float &eigen_value_0, float &eigen_value_1, f
 		eigen_vector_3 = c;
 	}
 	*/
-	else if (b != 0){
+	if (b != 0){
 		eigen_vector_0 = b;
 		eigen_vector_1 = eigen_value_0 - a;
 		eigen_vector_2 = b;
@@ -220,10 +220,10 @@ __device__ void compute_eigenvalue(float &eigen_value_0, float &eigen_value_1, f
 	}
 
 	// Scale eigenvector
-	eigen_vector_0 = 1*eigen_vector_0;	
-	eigen_vector_1 = 1*eigen_vector_1;	
-	eigen_vector_2 = 1*eigen_vector_2;	
-	eigen_vector_3 = 1*eigen_vector_3;	
+	eigen_vector_0 = 50*eigen_vector_0;	
+	eigen_vector_1 = 50*eigen_vector_1;	
+	eigen_vector_2 = 50*eigen_vector_2;	
+	eigen_vector_3 = 50*eigen_vector_3;	
 
 	// Get coordinates
 	int x = threadIdx.x + blockDim.x*blockIdx.x;
@@ -231,14 +231,14 @@ __device__ void compute_eigenvalue(float &eigen_value_0, float &eigen_value_1, f
 	int z = threadIdx.z + blockDim.z*blockIdx.z;
 	// Get index
 	size_t idx = x + (size_t)w*y + (size_t)w*h*z;
-/*
+
 	if (idx == 0){
 		printf("a = %f\n", a);
 		printf("b = %f\n", b);
 		printf("c = %f\n", c);
 		printf("d = %f\n", d);
 	}
-*/
+
 }
 
 // Apply anisotropic diffusion
@@ -275,10 +275,10 @@ __global__ void apply_diffusion(float *d_gradx, float *d_grady, float *d_imgIn, 
 	G[2] = mu_1*eigen_vector_1*eigen_vector_0 + mu_2*eigen_vector_3*eigen_vector_2;
 	G[3] = mu_1*eigen_vector_1*eigen_vector_1 + mu_2*eigen_vector_3*eigen_vector_3;
 
-	G[0] = 1;
-	G[1] = 0;
-	G[2] = 1;
-	G[3] = 0;
+	//G[0] = 1;
+	//G[1] = 0;
+	//G[2] = 0;
+	//G[3] = 1;
 
 	__syncthreads();
 
@@ -302,7 +302,7 @@ __global__ void apply_diffusion(float *d_gradx, float *d_grady, float *d_imgIn, 
 		printf("d_grady = %f\n", d_grady[idx]);
 
 
-/*
+
 		printf("G[0] = %f\n", G[0]);
 		printf("G[1] = %f\n", G[1]);
 		printf("G[2] = %f\n", G[2]);
@@ -317,7 +317,7 @@ __global__ void apply_diffusion(float *d_gradx, float *d_grady, float *d_imgIn, 
 
 		printf("Mu_1 = %f\n", mu_1);
 		printf("Mu_2 = %f\n", mu_2);
-*/
+
 	}
 }
 
@@ -461,7 +461,7 @@ int main(int argc, char **argv)
 
 	// Diffusion
 	float tau = 0.02f;
-	int	N = 500;
+	int	N = 2000000;
 	// Convolution kernel
 	float sigma = 0.5f;
 	float phi = 3.0f;
