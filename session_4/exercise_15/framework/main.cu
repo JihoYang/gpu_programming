@@ -132,9 +132,6 @@ int main(int argc, char **argv)
     int nc = mIn.channels();  // number of channels
     cout << "image: " << w << " x " << h << endl;
 
-
-
-
     // Set the output image format
     // ###
     // ###
@@ -181,7 +178,6 @@ int main(int argc, char **argv)
     // So we will convert as necessary, using interleaved "cv::Mat" for loading/saving/displaying, and layered "float*" for CUDA computations
     convert_mat_to_layered (imgIn, mIn);
 
-
     // ###
     // ###
     // ### TODO: Main computation
@@ -194,21 +190,13 @@ int main(int argc, char **argv)
 	int *histogram = new int[histSize];
 	// Nbytes
 	int nbytes_hist = histSize * sizeof(int);
-
-
 	// Processor type
 	string processor;
-
-
 	////////////////////////////////////////////////////////////////////// Block setting ///////////////////////////////////////////////////////////////////////
-
 	dim3 block = dim3(256, 1, 1); 
     dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1) / block.z);
-
-
 	// Device	
 	Timer timer; timer.start();
-
 	// Arrays
 	float *d_imgIn;
 	float *d_imgOut;

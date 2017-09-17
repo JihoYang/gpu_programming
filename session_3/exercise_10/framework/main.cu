@@ -469,7 +469,7 @@ int main(int argc, char **argv)
 
 
 	// Diffusion
-	float tau = 0.1f;
+	float tau = 0.01f;
 	int	N = 20000;
 	// Convolution kernel
 	float sigma = 0.5f;
@@ -703,6 +703,7 @@ int main(int argc, char **argv)
 		compute_divergence <<< grid, block >>> (d_div, d_gradx, d_grady, w, h, nc);											CUDA_CHECK;
 		// Update image
 		update_image <<< grid, block >>> (d_imgIn, d_div, tau, w, h, nc);													CUDA_CHECK;
+		cout << "Iteration = " << i << endl;
 	}
 
 	// Copy the results to host

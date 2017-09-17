@@ -16,7 +16,7 @@ For alpha and C refer to line 598
 
 I tested the code with G being an identity matrix and could observe a laplacian diffusion, and therefore the other parts of the codes are correct. I also checked my eigenvalues and eigenvectors (for structure tensors of couple of pixels) by comparing the results with Matlab's eig(A), and they matched. The only difference was in eigenvector, where different scaling factor was applied (the ratio of the elements, however, was the same, hence same basis). 
 
-I tried to scale the eigenvectors to increase the values of diffusion tensor, based on the assumption that eigenvalues can be scaled and no properties are lost, and still no change in diffusion was observed (and if some bad tau values are used, the solution diverged). 
+I tried to scale the eigenvectors to increase the values of diffusion tensor, based on the assumption that eigenvalues can be scaled without loosing the properties, and still no change in diffusion was observed (and if some bad tau values are used, the solution diverged). 
 
 I tried to reduce the C value so as to increase my mu_2, but in the scope of float precision, this didn't work out (if I decreased even more it becomes zero).
 
