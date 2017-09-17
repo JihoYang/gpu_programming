@@ -17,3 +17,5 @@ To change the settings for CPU or GPU version, refer to 160 - 190
 	   GPU time with blockDim.x = 128 is 0.383 ms
 	   GPU time with blockDim.x = 256 is 0.244 ms
 
+		BlockDim.x with 96 gave the minimum execution time
+
