@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     convert_mat_to_layered (imgIn, mIn);
 
 
-    Timer timer; timer.start();
+	// Time start
     // ###
     // ###
     // ### TODO: Main computation
@@ -159,15 +159,19 @@ int main(int argc, char **argv)
 	float gamma = 3.1f;
 
 	///////////////////////////////// Gamma correction - CPU Computation /////////////////////////////////
+/*
 
-	/*for (int i = 0; i < sizeImg; i++){
-		imgOut[i] = pow(imgIn[i], gamma);
-	}*/
+		for (int i = 0; i < sizeImg; i++){
+			imgOut[i] = pow(imgIn[i], gamma);
+		}
+	cout << "Processor - CPU" << endl;
 
+*/
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 	///////////////////////////////// Gamma correction - GPU Computation /////////////////////////////////
+
 
 	float *d_imgOut = NULL;	
 	float *d_imgIn  = NULL; 
@@ -178,15 +182,19 @@ int main(int argc, char **argv)
     dim3 block = dim3(128, 1, 1);
     dim3 grid = dim3((sizeImg+block.x-1)/block.x, 1, 1);
 	// Execute gamma correction
+    Timer timer; timer.start();
 	gamma_correction <<<grid, block>>> (d_imgOut, d_imgIn, sizeImg, gamma);
+    timer.end();  float t = timer.get();  // elapsed time in seconds
 	// Copy back to CPU
 	cudaMemcpy(imgOut, d_imgOut, nbytes, cudaMemcpyDeviceToHost); CUDA_CHECK;
 	cudaFree(d_imgOut); CUDA_CHECK;
 
+	cout << "Processor - GPU" << endl;
+
+
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    timer.end();  float t = timer.get();  // elapsed time in seconds
     cout << "time: " << t*1000 << " ms" << endl;
 
     // show input image
