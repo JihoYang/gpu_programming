@@ -14,63 +14,64 @@
 
 #include "helper.h"
 #include <iostream>
-#include "math.h"
+#include <string>
+#include <unistd.h>
 using namespace std;
+
 
 // uncomment to use the camera
 //#define CAMERA
 
 // Compute histogram in global memory
-__global__ void compute_histogram_global(float *d_imgIn, int *d_hist, int w, int h, int nc){
-	// Get coordinates
-	int x = threadIdx.x + blockDim.x*blockIdx.x;
-	int y = threadIdx.y + blockDim.y*blockIdx.y;
-	int z = threadIdx.z + blockDim.z*blockIdx.z;
-	// Compute histogram
+__global__ void compute_histogram_global(float *d_imgIn, int *d_histogram, int w, int h, int nc){
+	// Get coordinates	
+	int x = threadIdx.x + blockDim.x * blockIdx.x;
+	int y = threadIdx.y + blockDim.y * blockIdx.y;
+	int z = threadIdx.z + blockDim.z * blockIdx.z;
+	// Get indices
+	int idx = x + (size_t)w*y + (size_t)w*h*z;
+	int idx_hist = d_imgIn[idx] * 255.f;
+	// Fill in histogram
 	if (x < w && y < h && z < nc){
-		int idx = x + (size_t)w*y + (size_t)w*h*z; 
-		int idx_hist = d_imgIn[idx]*255.f;
-		atomicAdd(&d_hist[idx_hist], 1);
+		atomicAdd(&d_histogram[idx_hist], 1);
 	}
 }
 
 // Compute histogram in shared memory
-__global__ void compute_histogram_shared(float *d_imgIn, int *d_hist, int w, int h, int nc){
+__global__ void compute_histogram_shared(float *d_imgIn, int *d_histogram, int w, int h, int nc){
 	// Create histogram in shared memory
-   	__shared__ int histogram_shared[256];
-	// Get the x index of the thread
-	int t_x = threadIdx.x;
+	__shared__ int histogram_shared[256];
+	// Get thex index of the thread
+	int tid = threadIdx.x;
 	// Initialise the histogram with zero
-   	if (t_x < 256){
-       	histogram_shared[t_x] = 0;
-   	}
+	if (tid < 256){
+		histogram_shared[tid] = 0;
+	}	
 	__syncthreads();
 	// Get coordinates
-   	int x = threadIdx.x + blockDim.x * blockIdx.x;
-   	int y = threadIdx.y + blockDim.y * blockIdx.y;
-   	int z = threadIdx.z + blockDim.z * blockIdx.z;
-	// Compute histogram   
+	int x = threadIdx.x + blockDim.x * blockIdx.x;
+	int y = threadIdx.y + blockDim.y * blockIdx.y;
+	int z = threadIdx.z + blockDim.z * blockIdx.z;
+	// Fill in histogram
 	if (x < w && y < h && z < nc){
-		int idx = x + w*y + w*h*z; 
-		int idx_hist = d_imgIn[idx]*255.f;
+		int idx = x + (size_t)w*y + (size_t)w*h*z;
+		int idx_hist = d_imgIn[idx] * 255.f;
 		atomicAdd(&histogram_shared[idx_hist], 1);
 	}
-    __syncthreads();
+	__syncthreads();
 	// Update the histogram in global memory
-    if (t_x < 256) {
-        atomicAdd(&d_hist[t_x],histogram_shared[t_x]);
-    }
+	if (tid < 256){
+		atomicAdd(&d_histogram[tid], histogram_shared[tid]);
+	}
 }
 
+// main
 int main(int argc, char **argv)
 {
     // Before the GPU can process your kernels, a so called "CUDA context" must be initialized
     // This happens on the very first call to a CUDA function, and takes some time (around half a second)
     // We will do it right here, so that the run time measurements are accurate
     cudaDeviceSynchronize();  CUDA_CHECK;
-
-
-
 
     // Reading command line parameters:
     // getParam("param", var, argc, argv) looks whether "-param xyz" is specified, and if so stores the value "xyz" in "var"
@@ -96,11 +97,7 @@ int main(int argc, char **argv)
     bool gray = false;
     getParam("gray", gray, argc, argv);
     cout << "gray: " << gray << endl;
-
     // ### Define your own parameters here as needed    
-
-
-
 
     // Init camera / Load input image
 #ifdef CAMERA
@@ -149,8 +146,7 @@ int main(int argc, char **argv)
     //cv::Mat mOut(h,w,CV_32FC1);    // mOut will be a grayscale image, 1 layer
     // ### Define your own output images here as needed
 
-
-
+	int nbytes = (size_t)w*h*nc*sizeof(float);
 
     // Allocate arrays
     // input/output image width: w
@@ -159,26 +155,10 @@ int main(int argc, char **argv)
     // output image number of channels: mOut.channels(), as defined above (nc, 3, or 1)
 
     // allocate raw input image array
-    float *imgIn  = new float[(size_t)w*h*nc];
+    float *imgIn = new float[(size_t)nbytes];
 
     // allocate raw output array (the computation result will be stored in this array, then later converted to mOut for displaying)
     float *imgOut = new float[(size_t)w*h*mOut.channels()];
-
-    int histSize = 256;
-    int *hist = new int[histSize];
-    
-	//allocate memory on device
-	float *d_imgIn = NULL;
-	int *d_hist = NULL;
-	int imgSize = (size_t)w*h*nc;
-	
-	cudaMalloc(&d_imgIn, imgSize*sizeof(float)); CUDA_CHECK;
-	cudaMalloc(&d_hist, histSize*sizeof(int)); CUDA_CHECK;
-
-    dim3 block = dim3(128, 1, 1);
-    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, 1);
-    
-    Timer timer; float t = 0;
 
     // For camera mode: Make a loop to read in camera frames
 #ifdef CAMERA
@@ -200,87 +180,89 @@ int main(int argc, char **argv)
     // But for CUDA it's better to work with layered images: rrr... ggg... bbb...
     // So we will convert as necessary, using interleaved "cv::Mat" for loading/saving/displaying, and layered "float*" for CUDA computations
     convert_mat_to_layered (imgIn, mIn);
-    
-    for(int i=0;i<histSize;i++)
-    	hist[i] = 0;
-	
-	//copy host memory to device
-	cudaMemcpy(d_imgIn, imgIn, imgSize*sizeof(float), cudaMemcpyHostToDevice); CUDA_CHECK;
-	cudaMemcpy(d_hist, hist, histSize*sizeof(int), cudaMemcpyHostToDevice); CUDA_CHECK;
 
-    timer.start();
-    for (int i=0; i< repeats ; i++)
-    {
-        
-            compute_histogram_shared <<<grid,block>>> (d_imgIn, d_hist, w, h, nc);
-        
-    }
-    timer.end();
-    t = timer.get();  // elapsed time in seconds
-    cout << "Average time (shared) for " << repeats << " repeat(s): " << t * 1000 / repeats << " ms" << endl;    
 
-    cudaMemcpy(d_hist, hist, histSize*sizeof(int), cudaMemcpyHostToDevice); CUDA_CHECK;
-    
-    timer.start();
-	for (int i=0; i< repeats ; i++)
-	{
-		
-			compute_histogram_global <<<grid,block>>> (d_imgIn, d_hist, w, h, nc);
-		
+    // ###
+    // ###
+    // ### TODO: Main computation
+    // ###
+    // ###
+
+	// Histogram setup
+	int histSize = 256;
+	// Allocate memory on host
+	int *histogram = new int[histSize];
+	// Nbytes
+	int nbytes_hist = histSize * sizeof(int);
+
+
+	// Processor type
+	string processor;
+
+
+	////////////////////////////////////////////////////////////////////// Block setting ///////////////////////////////////////////////////////////////////////
+
+	dim3 block = dim3(256, 1, 1); 
+    dim3 grid = dim3((w + block.x - 1) / block.x, (h + block.y - 1) / block.y, (nc + block.z - 1) / block.z);
+
+
+	// Device	
+	Timer timer; timer.start();
+
+	// Arrays
+	float *d_imgIn;
+	float *d_imgOut;
+	int *d_histogram;
+	// CUDA
+    cudaMalloc(&d_imgIn, nbytes); 			CUDA_CHECK;
+    cudaMalloc(&d_imgOut, nbytes); 			CUDA_CHECK;
+	cudaMalloc(&d_histogram, nbytes_hist);	CUDA_CHECK;
+	// Initialise histogram
+	for (size_t i = 0; i < histSize; i++){
+		histogram[i] = 0;
 	}
-    timer.end();
-    t = timer.get();  // elapsed time in seconds	
-	cout << "Average time (naive) for " << repeats << " repeat(s): " << t * 1000 / repeats << " ms" << endl;  
-	
-	
-//    for(int i=0;i<histSize;i++)
-//    	hist[i] = 0;
-//	
-//	t = 0;
-//	for (int i=0; i< repeats ; i++)
-//	{
-//		timer.start();
-//			mykernel_shared <<<grid,block>>> (d_imgIn, d_hist, w, h, nc);
-//		timer.end();
-//		t += timer.get();  // elapsed time in seconds
-//	}	
-//	cout << "SHARED - Average time for " << repeats << " repeat(s): " << t * 1000 / repeats << " ms" << endl;	
-	
-	//copy result back to host memory
-	cudaMemcpy(hist, d_hist, histSize * sizeof(int), cudaMemcpyDeviceToHost); CUDA_CHECK;
-	
-	showHistogram256("Histogram", hist, 1000, 100);
-	
-    // show input image
-    showImage("Input", mIn, 100, 100);  // show at position (x_from_left=100,y_from_above=100)
-
-    // show output image: first convert to interleaved opencv format from the layered raw array
-    //convert_layered_to_mat(mOut, imgOut);
-    //showImage("Histogram", mOut, 100+w+40, 100);
-
-    // ### Display your own output images here as needed
+	// Copy to device
+    cudaMemcpy(d_imgIn, imgIn, nbytes, cudaMemcpyHostToDevice);			    	CUDA_CHECK;
+	cudaMemcpy(d_histogram, histogram, nbytes_hist, cudaMemcpyHostToDevice);	CUDA_CHECK;
+	// Histogram on shared memory
+	compute_histogram_shared <<< grid, block >>> (d_imgIn, d_histogram, w, h, nc);	CUDA_CHECK;
+	processor = "GPU - Shared";
+	cout << processor << endl;
+	// Histogram on global memory
+	//compute_histogram_global <<< grid, block >>> (d_imgIn, d_histogram, w, h, nc);	CUDA_CHECK;
+	//processor = "GPU - Global";
+	//cout << processor << endl;
+	// Copy the results to hist
+	cudaMemcpy(histogram, d_histogram, nbytes_hist, cudaMemcpyDeviceToHost);		CUDA_CHECK;
+	// Measure end time
+	timer.end();  float t = timer.get();
+	cout << "time: " << t*1000 << " ms" << endl;
+	// Visualise
+	convert_layered_to_mat(mIn, imgIn);
+	showImage("Input", mIn, 100, 100);
+	showHistogram256("Histogram", histogram, 1000, 100);
+ 	// Free memory
+    cudaFree(d_imgIn);  		CUDA_CHECK;
+    cudaFree(d_imgOut); 		CUDA_CHECK;
+	cudaFree(d_histogram);		CUDA_CHECK;
 
 #ifdef CAMERA
     // end of camera loop
-    }
+	}
 #else
     // wait for key inputs
     cv::waitKey(0);
 #endif
 
-	//free memory
-	cudaFree(d_imgIn);
-	cudaFree(d_hist);	
-
-
-    // save input and result
-    cv::imwrite("image_input.png",mIn*255.f);  // "imwrite" assumes channel range [0,255]
-    cv::imwrite("image_result.png",mOut*255.f);
-
-    // free allocated arrays
-    delete[] imgIn;
-    delete[] imgOut;
-    delete[] hist;
+	// free allocated arrays
+#ifdef CAMERA
+	delete[] imgIn;
+	delete[] imgOut;
+#else
+	delete[] imgIn;
+	delete[] imgOut;
+	delete[] histogram;
+#endif
 
     // close all opencv windows
     cvDestroyAllWindows();
