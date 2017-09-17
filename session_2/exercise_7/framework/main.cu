@@ -457,6 +457,15 @@ int main(int argc, char **argv)
     // save input and result
     cv::imwrite("image_input.png",mIn*255.f);  // "imwrite" assumes channel range [0,255]
     cv::imwrite("image_result.png",mOut*255.f);
+	cv::imwrite("grad_x.png", mgradx*255.f);
+	cv::imwrite("grad_y.png", mgrady*255.f);
+	cv::imwrite("m1.png", mM1*255.f);
+	cv::imwrite("m2.png", mM2*255.f);
+	cv::imwrite("m3.png", mM3*255.f);
+	cv::imwrite("t1.png", mT1*255.f);
+	cv::imwrite("t2.png", mT2*255.f);
+	cv::imwrite("t3.png", mT3*255.f);
+
 
 	// free allocated arrays
 #ifdef CAMERA
