@@ -69,7 +69,7 @@ set(generated_file_path "/usr/prakt/s151/gpu_programming/session_2/exercise_7/fr
 set(generated_file_internal "/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir//./main_generated_main.cu.o") # path
 set(generated_cubin_file_internal "/usr/prakt/s151/gpu_programming/session_2/exercise_7/framework/build_cmake/CMakeFiles/main.dir//./main_generated_main.cu.o.cubin.txt") # path
 
-set(CUDA_NVCC_EXECUTABLE "/usr/local/cuda-8.0/bin/nvcc") # path
+set(CUDA_NVCC_EXECUTABLE "/usr/local/cuda/bin/nvcc") # path
 set(CUDA_NVCC_FLAGS  ;; ) # list
 # Build specific configuration flags
 set(CUDA_NVCC_FLAGS_DEBUG  ; )
@@ -77,7 +77,7 @@ set(CUDA_NVCC_FLAGS_MINSIZEREL  ; )
 set(CUDA_NVCC_FLAGS_RELEASE  ; )
 set(CUDA_NVCC_FLAGS_RELWITHDEBINFO  ; )
 set(nvcc_flags -m64) # list
-set(CUDA_NVCC_INCLUDE_ARGS "-I/usr/local/cuda-8.0/include;-I/usr/include/opencv;-I/usr/include;-I/usr/local/cuda-8.0/include") # list (needs to be in quotes to handle spaces properly).
+set(CUDA_NVCC_INCLUDE_ARGS "-I/usr/local/cuda/include;-I/usr/include/opencv;-I/usr/include;-I/usr/local/cuda/include") # list (needs to be in quotes to handle spaces properly).
 set(format_flag "-c") # string
 set(cuda_language_flag ) # list
 
@@ -170,7 +170,7 @@ cuda_execute_process(
 # For CUDA 2.3 and below, -G -M doesn't work, so remove the -G flag
 # for dependency generation and hope for the best.
 set(depends_CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS}")
-set(CUDA_VERSION 8.0)
+set(CUDA_VERSION 7.5)
 if(CUDA_VERSION VERSION_LESS "3.0")
   cmake_policy(PUSH)
   # CMake policy 0007 NEW states that empty list elements are not
